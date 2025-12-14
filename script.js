@@ -1040,9 +1040,9 @@ function loadAlerts() {
     });
 }
 
-// ============================================
+
 // UTILITY FUNCTIONS
-// ============================================
+
 
 function generateToken() {
     return 'TKN' + Math.random().toString(36).substr(2, 6).toUpperCase();

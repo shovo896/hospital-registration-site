@@ -17,7 +17,7 @@
                 <button onclick="showSection('doctors')" class="nav-btn">Doctors</button>
                 <button onclick="showSection('diagnostics')" class="nav-btn">Diagnostics</button>
                 <button onclick="showSection('wards')" class="nav-btn">Wards</button>
-                <button onclick="showSection('admin')" class="nav-btn admin-btn">Admin</button>
+                <button onclick="showAdminLogin()" class="nav-btn admin-btn">Admin Login</button>
             </div>
         </div>
     </nav>
@@ -274,10 +274,39 @@
         </div>
     </div>
 
+    <!-- Admin Login Modal -->
+    <div id="admin-login-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('admin-login-modal')">&times;</span>
+            <h2>🔐 Admin Login</h2>
+            <p style="text-align: center; color: #64748b; margin-bottom: 20px;">Enter admin credentials to access dashboard</p>
+            <form id="admin-login-form">
+                <div class="form-group">
+                    <label>Username *</label>
+                    <input type="text" id="admin-username" required placeholder="Enter username">
+                </div>
+                <div class="form-group">
+                    <label>Password *</label>
+                    <input type="password" id="admin-password" required placeholder="Enter password">
+                </div>
+                <div id="login-error" style="color: #ef4444; text-align: center; margin-bottom: 10px; display: none;"></div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+            </form>
+            <div style="margin-top: 20px; padding: 15px; background: #f0f9ff; border-radius: 5px; font-size: 13px;">
+                <strong>Default Credentials:</strong><br>
+                Username: <code>admin</code><br>
+                Password: <code>admin123</code>
+            </div>
+        </div>
+    </div>
+
     <!-- Admin Section -->
     <section id="admin" class="section">
         <div class="container">
-            <h2>Admin Dashboard</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>Admin Dashboard</h2>
+                <button onclick="logoutAdmin()" class="btn btn-danger">🚪 Logout</button>
+            </div>
             
             <!-- Admin Tabs -->
             <div class="admin-tabs">

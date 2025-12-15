@@ -8,8 +8,9 @@ const adminCredentials = {
     password: 'admin123'
 };
 
-
+// ============================================
 // DATA STORAGE & INITIALIZATION
+// ============================================
 
 let hospitalData = {
     patients: [],
@@ -127,9 +128,9 @@ function initializeSampleData() {
     saveData();
 }
 
-
+// ============================================
 // UI NAVIGATION
-
+// ============================================
 
 function showAdminLogin() {
     if (isAdminLoggedIn) {
@@ -137,6 +138,174 @@ function showAdminLogin() {
     } else {
         document.getElementById('admin-login-modal').classList.add('active');
     }
+}
+
+function showSection(sectionId) {
+    // Check if trying to access admin without login
+    if (sectionId === 'admin' && !isAdminLoggedIn) {
+        showToast('Please login as admin first!');
+        showAdminLogin();
+        return;
+    }
+
+    // Check if trying to access profile without login
+    if (sectionId === 'my-profile' && !currentPatient) {
+        showToast('Please login first to view your profile!');
+        showSection('patient-register');
+        return;
+    }
+
+    // Hide all sections
+    document.querySelectorAll('.section').forEach(section => {
+        section.classList.remove('active');
+    });
+    
+    // Show selected section
+    document.getElementById(sectionId).classList.add('active');
+
+    // Load section-specific data
+    if (sectionId === 'doctors') {
+        loadDoctorsGrid();
+    } else if (sectionId === 'wards') {
+        loadAdmissionRequests();
+    } else if (sectionId === 'blood-bank') {
+        loadBloodStock();
+        loadBloodRequests();
+    } else if (sectionId === 'my-profile') {
+        loadMyProfile();
+    } else if (sectionId === 'admin') {
+        showAdminTab('doctors-mgmt');
+        updateAnalytics();
+    }
+}
+
+// ============================================
+// MY PROFILE SECTION
+// ============================================
+
+function loadMyProfile() {
+    if (!currentPatient) return;
+
+    // Load profile info
+    document.getElementById('profile-avatar-text').textContent = currentPatient.name.charAt(0).toUpperCase();
+    document.getElementById('profile-name').textContent = currentPatient.name;
+    document.getElementById('profile-id').textContent = `Patient ID: ${currentPatient.id}`;
+    document.getElementById('profile-blood').textContent = `Blood Group: ${currentPatient.bloodGroup || 'Not specified'}`;
+    document.getElementById('profile-phone').textContent = currentPatient.phone;
+    document.getElementById('profile-age').textContent = `${currentPatient.age} years`;
+    document.getElementById('profile-registered').textContent = formatDateTime(currentPatient.registrationDate);
+
+    // Load my appointments
+    loadMyAppointments();
+    
+    // Load my diagnostics
+    loadMyDiagnostics();
+    
+    // Load my donations
+    loadMyDonations();
+    
+    // Load my admissions
+    loadMyAdmissions();
+}
+
+function loadMyAppointments() {
+    const container = document.getElementById('my-appointments-list');
+    const myAppointments = hospitalData.appointments.filter(apt => apt.patientId === currentPatient.id);
+
+    if (myAppointments.length === 0) {
+        container.innerHTML = '<p style="color: #64748b;">No appointments yet.</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    myAppointments.forEach(apt => {
+        const item = document.createElement('div');
+        item.className = 'profile-item';
+        item.innerHTML = `
+            <h4>Dr. ${apt.doctorName}</h4>
+            <p><strong>Date:</strong> ${apt.date}</p>
+            <p><strong>Time:</strong> ${apt.slot}</p>
+            <p><strong>Token:</strong> ${apt.tokenNumber}</p>
+            <p><strong>Fee:</strong> ৳${apt.fee || 0}</p>
+            <span class="status-badge ${apt.paymentStatus === 'paid' ? 'normal' : 'pending'}">
+                ${apt.paymentStatus === 'paid' ? '✓ Paid' : '⏳ Payment Pending'}
+            </span>
+            <span class="status-badge ${apt.status}">${apt.status.toUpperCase()}</span>
+        `;
+        container.appendChild(item);
+    });
+}
+
+function loadMyDiagnostics() {
+    const container = document.getElementById('my-diagnostics-list');
+    const myDiagnostics = hospitalData.diagnosticBookings.filter(diag => diag.patientId === currentPatient.id);
+
+    if (myDiagnostics.length === 0) {
+        container.innerHTML = '<p style="color: #64748b;">No diagnostic tests booked yet.</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    myDiagnostics.forEach(diag => {
+        const item = document.createElement('div');
+        item.className = 'profile-item';
+        item.innerHTML = `
+            <h4>${diag.testType}</h4>
+            <p><strong>Date:</strong> ${diag.date}</p>
+            <p><strong>Time:</strong> ${diag.slot}</p>
+            <p><strong>Token:</strong> ${diag.tokenNumber}</p>
+            <span class="status-badge ${diag.status}">${diag.status.toUpperCase()}</span>
+        `;
+        container.appendChild(item);
+    });
+}
+
+function loadMyDonations() {
+    const container = document.getElementById('my-donations-list');
+    const myDonations = hospitalData.bloodBank.donations.filter(don => don.donorId === currentPatient.id);
+
+    if (myDonations.length === 0) {
+        container.innerHTML = '<p style="color: #64748b;">No blood donations yet. Be a hero - donate blood!</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    myDonations.forEach(don => {
+        const item = document.createElement('div');
+        item.className = 'profile-item';
+        item.innerHTML = `
+            <h4>🩸 Blood Group: ${don.bloodGroup}</h4>
+            <p><strong>Units Donated:</strong> ${don.units}</p>
+            <p><strong>Date:</strong> ${formatDateTime(don.donationDate)}</p>
+            <span class="blood-badge donated">✓ Donated Successfully</span>
+        `;
+        container.appendChild(item);
+    });
+}
+
+function loadMyAdmissions() {
+    const container = document.getElementById('my-admissions-list');
+    const myAdmissions = hospitalData.wardAdmissions.filter(adm => adm.patientId === currentPatient.id);
+
+    if (myAdmissions.length === 0) {
+        container.innerHTML = '<p style="color: #64748b;">No ward admission requests.</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    myAdmissions.forEach(adm => {
+        const item = document.createElement('div');
+        item.className = 'profile-item';
+        item.innerHTML = `
+            <h4>🏥 ${adm.wardType} Ward</h4>
+            <p><strong>Reason:</strong> ${adm.reason}</p>
+            <p><strong>Duration:</strong> ${adm.duration} days</p>
+            <p><strong>Request Date:</strong> ${formatDateTime(adm.requestTime)}</p>
+            ${adm.emergency ? '<span class="admission-badge" style="background: #fee2e2; color: #991b1b;">🚨 EMERGENCY</span>' : ''}
+            <span class="admission-badge ${adm.status}">${adm.status.toUpperCase()}</span>
+        `;
+        container.appendChild(item);
+    });
 }
 
 function showSection(sectionId) {
@@ -195,6 +364,203 @@ function showAdminTab(tabId) {
         loadDoctorsListAdmin();
     } else if (tabId === 'diagnostics-mgmt') {
         loadDiagnosticQueues();
+    } else if (tabId === 'blood-mgmt') {
+        loadAdminBloodBank();
+    } else if (tabId === 'wards-mgmt') {
+        loadWardRequestsAdmin();
+    } else if (tabId === 'queues') {
+        loadDoctorQueues();
+    } else if (tabId === 'analytics') {
+        updateAnalytics();
+    }
+}
+
+
+// ADMIN - BLOOD BANK MANAGEMENT
+// 
+
+function loadAdminBloodBank() {
+    // Load blood stock
+    const stockContainer = document.getElementById('admin-blood-stock');
+    stockContainer.innerHTML = '';
+
+    Object.keys(hospitalData.bloodBank.stock).forEach(bloodGroup => {
+        const units = hospitalData.bloodBank.stock[bloodGroup];
+        const card = document.createElement('div');
+        
+        let statusClass = '';
+        let statusText = 'Available';
+        
+        if (units === 0) {
+            statusClass = 'out-of-stock';
+            statusText = 'Out of Stock';
+        } else if (units < 5) {
+            statusClass = 'low-stock';
+            statusText = 'Low Stock';
+        }
+        
+        card.className = `blood-group-card ${statusClass}`;
+        card.innerHTML = `
+            <div class="blood-group-label">${bloodGroup}</div>
+            <div class="blood-stock-count">${units} Units</div>
+            <div class="blood-stock-status">${statusText}</div>
+        `;
+        
+        stockContainer.appendChild(card);
+    });
+
+    // Load all donations
+    const donationsContainer = document.getElementById('admin-all-donations');
+    
+    if (hospitalData.bloodBank.donations.length === 0) {
+        donationsContainer.innerHTML = '<p>No donations yet.</p>';
+    } else {
+        donationsContainer.innerHTML = '';
+        
+        // Show recent 10 donations
+        const recentDonations = hospitalData.bloodBank.donations.slice(-10).reverse();
+        
+        recentDonations.forEach(don => {
+            const item = document.createElement('div');
+            item.className = 'donation-item';
+            item.innerHTML = `
+                <h4>Donor: ${don.donorName}</h4>
+                <p><strong>Blood Group:</strong> ${don.bloodGroup} | <strong>Units:</strong> ${don.units}</p>
+                <p><strong>Phone:</strong> ${don.donorPhone}</p>
+                <p><strong>Date:</strong> ${formatDateTime(don.donationDate)}</p>
+                <span class="blood-badge donated">✓ Completed</span>
+            `;
+            donationsContainer.appendChild(item);
+        });
+        
+        if (hospitalData.bloodBank.donations.length > 10) {
+            const moreInfo = document.createElement('p');
+            moreInfo.style.textAlign = 'center';
+            moreInfo.style.color = '#64748b';
+            moreInfo.style.marginTop = '15px';
+            moreInfo.textContent = `Showing recent 10 of ${hospitalData.bloodBank.donations.length} total donations`;
+            donationsContainer.appendChild(moreInfo);
+        }
+    }
+
+    // Load blood requests
+    const requestsContainer = document.getElementById('admin-blood-requests');
+    
+    const pendingRequests = hospitalData.bloodBank.requests.filter(r => r.status === 'pending');
+    
+    if (pendingRequests.length === 0) {
+        requestsContainer.innerHTML = '<p>No pending blood requests.</p>';
+    } else {
+        requestsContainer.innerHTML = '';
+        
+        pendingRequests.forEach(req => {
+            const item = document.createElement('div');
+            item.className = 'blood-request-item urgent';
+            
+            const deadline = new Date(req.deadline);
+            const isUrgent = (deadline - new Date()) < (24 * 60 * 60 * 1000);
+            
+            const available = hospitalData.bloodBank.stock[req.bloodGroup] || 0;
+            const canFulfill = available >= req.units;
+            
+            item.innerHTML = `
+                <h4>🚨 ${req.bloodGroup} - ${req.units} Unit(s) Needed</h4>
+                <p><strong>Patient:</strong> ${req.patientName}</p>
+                <p><strong>Requester:</strong> ${req.requesterName} (${req.contact})</p>
+                <p><strong>Reason:</strong> ${req.reason}</p>
+                <p><strong>Required By:</strong> ${formatDateTime(req.deadline)}</p>
+                <p><strong>Available Stock:</strong> ${available} units ${canFulfill ? '✓' : '❌'}</p>
+                ${isUrgent ? '<span class="blood-badge" style="background: #fee2e2; color: #991b1b;">⚠️ URGENT</span>' : ''}
+                <span class="blood-badge pending">Pending</span>
+                ${canFulfill ? `
+                    <div style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button class="btn btn-primary btn-small" onclick="fulfillBloodRequest('${req.id}')">Fulfill Request</button>
+                        <button class="btn btn-danger btn-small" onclick="rejectBloodRequest('${req.id}')">Reject</button>
+                    </div>
+                ` : '<p style="color: #ef4444; margin-top: 10px;"><strong>⚠️ Insufficient stock!</strong></p>'}
+            `;
+            requestsContainer.appendChild(item);
+        });
+    }
+}
+
+function fulfillBloodRequest(requestId) {
+    if (!isAdminLoggedIn) {
+        showToast('Unauthorized! Admin access only.');
+        return;
+    }
+
+    const request = hospitalData.bloodBank.requests.find(r => r.id === requestId);
+    if (!request) return;
+
+    // Check stock again
+    if (hospitalData.bloodBank.stock[request.bloodGroup] < request.units) {
+        showToast('Insufficient blood stock!');
+        return;
+    }
+
+    if (confirm(`Fulfill blood request?\n\nBlood Group: ${request.bloodGroup}\nUnits: ${request.units}\nPatient: ${request.patientName}`)) {
+        // Deduct from stock
+        hospitalData.bloodBank.stock[request.bloodGroup] -= request.units;
+        
+        // Update request status
+        request.status = 'fulfilled';
+        request.fulfilledDate = new Date().toISOString();
+        
+        saveData();
+        showToast('Blood request fulfilled successfully!');
+        loadAdminBloodBank();
+        
+        addAlert('success', `✓ Blood request fulfilled: ${request.units} unit(s) ${request.bloodGroup} for ${request.patientName}`);
+    }
+}
+
+function rejectBloodRequest(requestId) {
+    if (!isAdminLoggedIn) {
+        showToast('Unauthorized! Admin access only.');
+        return;
+    }
+
+    const request = hospitalData.bloodBank.requests.find(r => r.id === requestId);
+    if (!request) return;
+
+    if (confirm(`Reject blood request for ${request.patientName}?`)) {
+        request.status = 'rejected';
+        request.rejectedDate = new Date().toISOString();
+        
+        saveData();
+        showToast('Blood request rejected.');
+        loadAdminBloodBank();
+        
+        addAlert('info', `Blood request rejected for ${request.patientName}`);
+    }
+}
+
+function showAdminTab(tabId) {
+    // Check admin authentication
+    if (!isAdminLoggedIn) {
+        showToast('Unauthorized! Please login as admin.');
+        showAdminLogin();
+        return;
+    }
+
+    // Hide all tabs
+    document.querySelectorAll('.admin-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // Show selected tab
+    document.getElementById(tabId).classList.add('active');
+    event.target.classList.add('active');
+
+    // Load tab-specific data
+    if (tabId === 'doctors-mgmt') {
+        loadDoctorsListAdmin();
+    } else if (tabId === 'diagnostics-mgmt') {
+        loadDiagnosticQueues();
     } else if (tabId === 'wards-mgmt') {
         loadWardRequestsAdmin();
     } else if (tabId === 'queues') {
@@ -221,14 +587,18 @@ function showPatientAuth() {
 
 function updatePatientAuthButton() {
     const btn = document.getElementById('patient-auth-btn');
+    const profileBtn = document.getElementById('profile-btn');
+    
     if (currentPatient) {
         btn.textContent = `👤 ${currentPatient.name}`;
         btn.style.background = '#10b981';
         btn.style.color = 'white';
+        profileBtn.style.display = 'block'; // Show profile button
     } else {
         btn.textContent = 'Login / Register';
         btn.style.background = '';
         btn.style.color = '';
+        profileBtn.style.display = 'none'; // Hide profile button
     }
 }
 
@@ -397,7 +767,7 @@ function loadDoctorsGrid() {
     });
 }
 
-
+// 
 // APPOINTMENT BOOKING
 
 
@@ -603,7 +973,7 @@ document.getElementById('appointment-form')?.addEventListener('submit', function
 
 
 // DIAGNOSTIC SERVICES
-
+//
 
 let selectedDiagnostic = null;
 
@@ -768,7 +1138,6 @@ document.getElementById('diagnostic-form')?.addEventListener('submit', function(
 
 // BLOOD BANK SYSTEM
 
-
 function loadBloodStock() {
     const container = document.getElementById('blood-stock-display');
     container.innerHTML = '';
@@ -854,7 +1223,11 @@ document.getElementById('donate-blood-form')?.addEventListener('submit', functio
 
     showToast(`Thank you for donating ${units} unit(s) of ${bloodGroup} blood! You saved lives! ❤️`);
     loadBloodStock();
-    loadDonationHistory();
+    
+    // If on profile page, reload donations
+    if (document.getElementById('my-profile').classList.contains('active')) {
+        loadMyDonations();
+    }
 
     // Show certificate
     setTimeout(() => {
@@ -919,37 +1292,6 @@ document.getElementById('request-blood-form')?.addEventListener('submit', functi
     // Add alert for admin
     addAlert('danger', `🚨 Emergency: ${units} unit(s) ${bloodGroup} blood needed for ${request.patientName}`);
 });
-
-function loadDonationHistory() {
-    const container = document.getElementById('donation-history-list');
-    
-    if (!currentPatient) {
-        container.innerHTML = '<p>Please login to view donation history.</p>';
-        return;
-    }
-
-    const myDonations = hospitalData.bloodBank.donations.filter(
-        d => d.donorId === currentPatient.id
-    );
-
-    if (myDonations.length === 0) {
-        container.innerHTML = '<p>No donation history yet. Be a hero - donate blood!</p>';
-        return;
-    }
-
-    container.innerHTML = '';
-    myDonations.forEach(donation => {
-        const item = document.createElement('div');
-        item.className = 'donation-item';
-        item.innerHTML = `
-            <h4>Blood Group: ${donation.bloodGroup}</h4>
-            <p><strong>Units Donated:</strong> ${donation.units}</p>
-            <p><strong>Date:</strong> ${formatDateTime(donation.donationDate)}</p>
-            <span class="blood-badge donated">✓ Donated</span>
-        `;
-        container.appendChild(item);
-    });
-}
 
 function loadBloodRequests() {
     const container = document.getElementById('blood-requests-list');
@@ -1075,10 +1417,7 @@ document.getElementById('payment-form')?.addEventListener('submit', function(e) 
         alert(`Payment Receipt\n\nAppointment ID: ${currentPaymentData.tokenNumber}\nDoctor: ${currentPaymentData.doctorName}\nAmount Paid: ৳${currentPaymentData.fee}\nPayment Method: ${method.toUpperCase()}\nDate: ${formatDateTime(payment.paymentDate)}\n\nThank you!\n- IbneSina Hospital`);
     }, 500);
 });
-
-
-// WARD ADMISSION
-
+// ward manegement 
 
 let selectedWard = null;
 
@@ -1396,10 +1735,8 @@ function updateAverages() {
         hospitalData.analytics.averageWaitTime = Math.floor(totalWait / completed.length);
         hospitalData.analytics.averageServiceTime = Math.floor(totalService / completed.length);
     }
-}
 
-
-// ADMIN - DOCTORS MANAGEMENT
+// ADMIN - DOCTORS MANAGE
 
 function showAddDoctorForm() {
     document.getElementById('add-doctor-form').style.display = 'block';
@@ -1621,6 +1958,7 @@ function updateQueueDisplays() {
 
 
 // ADMIN - WARD MANAGEMENT
+
 
 function loadWardRequestsAdmin() {
     const container = document.getElementById('ward-requests-admin');
@@ -1940,3 +2278,4 @@ window.addEventListener('click', (e) => {
         e.target.classList.remove('active');
     }
 });
+

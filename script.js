@@ -390,16 +390,7 @@ function logout() {
 }
 
 // Load data from localStorage
-function loadData() {
-    const saved = localStorage.getItem('hospitalData');
-    if (saved) {
-        hospitalData = JSON.parse(saved);
-        initializeTimers();
-    } else {
-        // Initialize with sample doctors
-        initializeSampleData();
-    }
-}
+// Duplicate loadData removed - using version above
 
 // Save data to localStorage
 function saveData() {
@@ -503,7 +494,9 @@ function showPatientTab(tabId) {
     });
     
     document.getElementById(tabId).classList.add('active');
-    event.target.classList.add('active');
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
     
     if (tabId === 'patient-profile') {
         loadPatientProfile();
@@ -693,7 +686,9 @@ function showDonorTab(tabId) {
     });
     
     document.getElementById(tabId).classList.add('active');
-    event.target.classList.add('active');
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
     
     if (tabId === 'donor-profile') {
         loadDonorProfile();
@@ -868,7 +863,9 @@ function showEmployeeTab(tabId) {
     });
     
     document.getElementById(tabId).classList.add('active');
-    event.target.classList.add('active');
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
 }
 
 function loadEmployeeDashboard() {
@@ -2825,6 +2822,38 @@ function initializeTimers() {
             }
         });
     });
+}
+
+// ============================================
+// SYSTEM RESET (FOR TESTING)
+// ============================================
+
+function resetSystem() {
+    if (confirm('⚠️ WARNING: This will clear ALL data including:\n- All users\n- All appointments\n- All sessions\n\nAre you sure?')) {
+        console.log('🗑️ Clearing all localStorage data...');
+        
+        // Clear all localStorage
+        localStorage.removeItem('hospitalData');
+        localStorage.removeItem('userData');
+        localStorage.removeItem('currentSession');
+        localStorage.removeItem('currentPatient'); // Old system
+        
+        // Reset variables
+        currentUser = null;
+        currentRole = null;
+        userData = {
+            patients: [],
+            donors: [],
+            employees: [],
+            admins: []
+        };
+        
+        console.log('✅ System reset complete!');
+        alert('✅ System reset successful!\n\nPage will reload...');
+        
+        // Reload page
+        location.reload();
+    }
 }
 
 // ============================================

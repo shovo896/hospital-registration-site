@@ -368,6 +368,123 @@ body {
     margin-top: 30px;
 }
 
+/* Blood Bank Styles */
+.blood-stock-section {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
+}
+
+.blood-groups-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.blood-group-card {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    padding: 25px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+    transition: all 0.3s;
+}
+
+.blood-group-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+}
+
+.blood-group-card.low-stock {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.blood-group-card.out-of-stock {
+    background: linear-gradient(135deg, #6b7280, #4b5563);
+}
+
+.blood-group-label {
+    font-size: 32px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.blood-stock-count {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.blood-stock-status {
+    font-size: 12px;
+    margin-top: 5px;
+    opacity: 0.9;
+}
+
+.blood-actions {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin: 40px 0;
+    flex-wrap: wrap;
+}
+
+.blood-history-section,
+.blood-requests-section {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    margin-top: 30px;
+}
+
+.donation-item,
+.blood-request-item {
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
+
+.blood-request-item.urgent {
+    border-left: 4px solid var(--danger-color);
+    background: #fee2e2;
+}
+
+.blood-request-item h4 {
+    color: var(--danger-color);
+    margin-bottom: 10px;
+}
+
+.blood-badge {
+    display: inline-block;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-right: 10px;
+}
+
+.blood-badge.donated {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.blood-badge.pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.blood-badge.fulfilled {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+/* Wards Grid (continued) */
+
 .ward-card {
     background: white;
     padding: 30px;

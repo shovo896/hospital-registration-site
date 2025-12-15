@@ -10,12 +10,13 @@
     <!-- Main Navigation -->
     <nav class="main-nav">
         <div class="container">
-            <div class="logo">🏥 Ibne Sina</div>
+            <div class="logo">🏥 IbneSina Hospital</div>
             <div class="nav-links">
                 <button onclick="showSection('patient-home')" class="nav-btn">Home</button>
                 <button onclick="showPatientAuth()" class="nav-btn" id="patient-auth-btn">Login / Register</button>
                 <button onclick="showSection('doctors')" class="nav-btn">Doctors</button>
                 <button onclick="showSection('diagnostics')" class="nav-btn">Diagnostics</button>
+                <button onclick="showSection('blood-bank')" class="nav-btn">Blood Bank</button>
                 <button onclick="showSection('wards')" class="nav-btn">Wards</button>
                 <button onclick="showAdminLogin()" class="nav-btn admin-btn">Admin Login</button>
             </div>
@@ -26,7 +27,7 @@
     <section id="patient-home" class="section active">
         <div class="container">
             <div class="hero">
-                <h1>Welcome to Ibne Sina </h1>
+                <h1>Welcome to IbneSina Hospital</h1>
                 <p>Quality Healthcare Services at Your Fingertips</p>
                 <div class="quick-actions">
                     <button onclick="showPatientAuth()" class="btn btn-primary">Login / Register</button>
@@ -204,6 +205,49 @@
         </div>
     </section>
 
+    <!-- Blood Bank Section -->
+    <section id="blood-bank" class="section">
+        <div class="container">
+            <h2>🩸 Blood Bank</h2>
+            
+            <!-- Blood Stock Display -->
+            <div class="blood-stock-section">
+                <h3>Available Blood Stock</h3>
+                <div class="blood-groups-grid" id="blood-stock-display">
+                    <!-- Blood stock will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="blood-actions">
+                <button onclick="openDonateBloodModal()" class="btn btn-primary" style="font-size: 18px; padding: 15px 40px;">
+                    ❤️ Donate Blood
+                </button>
+                <button onclick="openRequestBloodModal()" class="btn btn-danger" style="font-size: 18px; padding: 15px 40px;">
+                    🚨 Request Blood (Emergency)
+                </button>
+            </div>
+
+            <!-- Blood Donation History -->
+            <div class="blood-history-section">
+                <h3>My Donation History</h3>
+                <div id="donation-history-list">
+                    <!-- Donation history will be shown here -->
+                </div>
+            </div>
+
+            <!-- Blood Requests List -->
+            <div class="blood-requests-section">
+                <h3>Emergency Blood Requests</h3>
+                <div id="blood-requests-list">
+                    <!-- Blood requests will be shown here -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Diagnostics Section (continued) -->
+
     <!-- Diagnostic Booking Modal -->
     <div id="diagnostic-modal" class="modal">
         <div class="modal-content">
@@ -317,10 +361,102 @@
             <div style="margin-top: 20px; padding: 15px; background: #f0f9ff; border-radius: 5px; font-size: 13px;">
                 <strong>Default Credentials:</strong><br>
                 Username: <code>admin</code><br>
-                Password: <code>bouu</code>
+                Password: <code>admin123</code>
             </div>
         </div>
     </div>
+
+    <!-- Blood Donation Modal -->
+    <div id="donate-blood-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('donate-blood-modal')">&times;</span>
+            <h2>❤️ Donate Blood</h2>
+            <p style="text-align: center; color: #64748b; margin-bottom: 20px;">Save lives by donating blood</p>
+            <form id="donate-blood-form">
+                <div class="form-group">
+                    <label>Blood Group *</label>
+                    <select id="donate-blood-group" required>
+                        <option value="">Select Blood Group</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Units to Donate *</label>
+                    <select id="donate-units" required>
+                        <option value="1">1 Unit (450ml)</option>
+                        <option value="2">2 Units (900ml)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Last Donation Date (if any)</label>
+                    <input type="date" id="last-donation-date">
+                    <small>Note: Must wait 3 months between donations</small>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="health-declaration" required>
+                        I am healthy and fit to donate blood
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Donate Now</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Blood Request Modal -->
+    <div id="request-blood-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('request-blood-modal')">&times;</span>
+            <h2>🚨 Emergency Blood Request</h2>
+            <p style="text-align: center; color: #ef4444; margin-bottom: 20px; font-weight: bold;">Emergency Blood Required</p>
+            <form id="request-blood-form">
+                <div class="form-group">
+                    <label>Patient Name *</label>
+                    <input type="text" id="request-patient-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Blood Group Required *</label>
+                    <select id="request-blood-group" required>
+                        <option value="">Select Blood Group</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Units Required *</label>
+                    <input type="number" id="request-units" required min="1" max="10" value="1">
+                </div>
+                <div class="form-group">
+                    <label>Reason/Diagnosis *</label>
+                    <textarea id="request-reason" required rows="3" placeholder="e.g., Surgery, Accident, Thalassemia"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Contact Number *</label>
+                    <input type="tel" id="request-contact" required>
+                </div>
+                <div class="form-group">
+                    <label>Required By *</label>
+                    <input type="datetime-local" id="request-deadline" required>
+                </div>
+                <button type="submit" class="btn btn-danger" style="width: 100%;">Submit Emergency Request</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal (continued) -->
 
     <!-- Admin Section -->
     <section id="admin" class="section">
@@ -448,6 +584,90 @@
             </div>
         </div>
     </section>
+
+    <!-- Payment Modal -->
+    <div id="payment-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('payment-modal')">&times;</span>
+            <h2>💳 Payment</h2>
+            <div id="payment-info" style="text-align: center; margin-bottom: 20px;">
+                <!-- Payment details will be shown here -->
+            </div>
+            <form id="payment-form">
+                <div class="form-group">
+                    <label>Select Payment Method *</label>
+                    <select id="payment-method" required onchange="updatePaymentFields()">
+                        <option value="">Select Method</option>
+                        <option value="bkash">bKash</option>
+                        <option value="nagad">Nagad</option>
+                        <option value="visa">Visa Card</option>
+                        <option value="savings">Savings Account</option>
+                    </select>
+                </div>
+
+                <!-- bKash/Nagad Fields -->
+                <div id="mobile-payment-fields" style="display: none;">
+                    <div class="form-group">
+                        <label>Mobile Number *</label>
+                        <input type="tel" id="mobile-number" placeholder="01XXXXXXXXX">
+                    </div>
+                    <div class="form-group">
+                        <label>Transaction ID *</label>
+                        <input type="text" id="transaction-id" placeholder="Enter transaction ID">
+                        <small>Pay to: 01700000000 and enter TrxID</small>
+                    </div>
+                </div>
+
+                <!-- Visa Card Fields -->
+                <div id="visa-fields" style="display: none;">
+                    <div class="form-group">
+                        <label>Card Number *</label>
+                        <input type="text" id="card-number" placeholder="1234 5678 9012 3456" maxlength="19">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label>Expiry Date *</label>
+                            <input type="text" id="card-expiry" placeholder="MM/YY" maxlength="5">
+                        </div>
+                        <div class="form-group">
+                            <label>CVV *</label>
+                            <input type="text" id="card-cvv" placeholder="123" maxlength="3">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Cardholder Name *</label>
+                        <input type="text" id="card-name" placeholder="Name on card">
+                    </div>
+                </div>
+
+                <!-- Savings Account Fields -->
+                <div id="savings-fields" style="display: none;">
+                    <div class="form-group">
+                        <label>Account Number *</label>
+                        <input type="text" id="account-number" placeholder="Enter account number">
+                    </div>
+                    <div class="form-group">
+                        <label>Account Holder Name *</label>
+                        <input type="text" id="account-holder" placeholder="Account holder name">
+                    </div>
+                    <div class="form-group">
+                        <label>Bank Name *</label>
+                        <select id="bank-name">
+                            <option value="">Select Bank</option>
+                            <option value="islami">Islami Bank</option>
+                            <option value="dutch-bangla">Dutch-Bangla Bank</option>
+                            <option value="brac">BRAC Bank</option>
+                            <option value="city">City Bank</option>
+                            <option value="standard">Standard Chartered</option>
+                            <option value="hsbc">HSBC</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Confirm Payment</button>
+            </form>
+        </div>
+    </div>
 
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>

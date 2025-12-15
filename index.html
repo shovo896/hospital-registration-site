@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hospital Management System</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <!-- Main Navigation -->
@@ -14,6 +14,7 @@
             <div class="nav-links">
                 <button onclick="showSection('patient-home')" class="nav-btn">Home</button>
                 <button onclick="showPatientAuth()" class="nav-btn" id="patient-auth-btn">Login / Register</button>
+                <button onclick="showSection('my-profile')" class="nav-btn" id="profile-btn" style="display: none;">My Profile</button>
                 <button onclick="showSection('doctors')" class="nav-btn">Doctors</button>
                 <button onclick="showSection('diagnostics')" class="nav-btn">Diagnostics</button>
                 <button onclick="showSection('blood-bank')" class="nav-btn">Blood Bank</button>
@@ -125,6 +126,74 @@
         </div>
     </section>
 
+    <!-- My Profile Section -->
+    <section id="my-profile" class="section">
+        <div class="container">
+            <h2>👤 My Profile</h2>
+
+            <!-- Profile Info Card -->
+            <div class="profile-card">
+                <div class="profile-header">
+                    <div class="profile-avatar">
+                        <span id="profile-avatar-text">P</span>
+                    </div>
+                    <div class="profile-info">
+                        <h3 id="profile-name">Patient Name</h3>
+                        <p id="profile-id">Patient ID: P000000</p>
+                        <p id="profile-blood">Blood Group: N/A</p>
+                    </div>
+                    <button onclick="logoutPatient()" class="btn btn-danger">Logout</button>
+                </div>
+                <div class="profile-details">
+                    <div class="detail-item">
+                        <span class="detail-label">📞 Phone:</span>
+                        <span id="profile-phone" class="detail-value">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">🎂 Age:</span>
+                        <span id="profile-age" class="detail-value">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">📅 Registered:</span>
+                        <span id="profile-registered" class="detail-value">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- My Appointments -->
+            <div class="profile-section">
+                <h3>📅 My Appointments</h3>
+                <div id="my-appointments-list" class="profile-list">
+                    <!-- Appointments will be loaded here -->
+                </div>
+            </div>
+
+            <!-- My Diagnostic Bookings -->
+            <div class="profile-section">
+                <h3>🔬 My Diagnostic Tests</h3>
+                <div id="my-diagnostics-list" class="profile-list">
+                    <!-- Diagnostic bookings will be loaded here -->
+                </div>
+            </div>
+
+            <!-- My Blood Donations -->
+            <div class="profile-section">
+                <h3>🩸 My Blood Donations</h3>
+                <div id="my-donations-list" class="profile-list">
+                    <!-- Blood donations will be loaded here -->
+                </div>
+            </div>
+
+            <!-- My Ward Admissions -->
+            <div class="profile-section">
+                <h3>🏥 My Ward Admissions</h3>
+                <div id="my-admissions-list" class="profile-list">
+                    <!-- Ward admissions will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Doctors Section -->
     <section id="doctors" class="section">
         <div class="container">
@@ -226,14 +295,6 @@
                 <button onclick="openRequestBloodModal()" class="btn btn-danger" style="font-size: 18px; padding: 15px 40px;">
                     🚨 Request Blood (Emergency)
                 </button>
-            </div>
-
-            <!-- Blood Donation History -->
-            <div class="blood-history-section">
-                <h3>My Donation History</h3>
-                <div id="donation-history-list">
-                    <!-- Donation history will be shown here -->
-                </div>
             </div>
 
             <!-- Blood Requests List -->
@@ -470,6 +531,7 @@
             <div class="admin-tabs">
                 <button class="tab-btn active" onclick="showAdminTab('doctors-mgmt')">Doctors</button>
                 <button class="tab-btn" onclick="showAdminTab('diagnostics-mgmt')">Diagnostics</button>
+                <button class="tab-btn" onclick="showAdminTab('blood-mgmt')">Blood Bank</button>
                 <button class="tab-btn" onclick="showAdminTab('wards-mgmt')">Wards</button>
                 <button class="tab-btn" onclick="showAdminTab('queues')">Live Queues</button>
                 <button class="tab-btn" onclick="showAdminTab('analytics')">Analytics</button>
@@ -522,6 +584,37 @@
                     <h3>Diagnostic Services Queue</h3>
                     <div id="diagnostic-queues">
                         <!-- Diagnostic queues will be shown here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Blood Bank Management Tab -->
+            <div id="blood-mgmt" class="admin-tab">
+                <div class="admin-section">
+                    <h3>Blood Bank Dashboard</h3>
+                    
+                    <!-- Blood Stock Overview -->
+                    <div class="blood-stock-admin">
+                        <h4>Current Blood Stock</h4>
+                        <div class="blood-groups-grid" id="admin-blood-stock">
+                            <!-- Blood stock cards -->
+                        </div>
+                    </div>
+
+                    <!-- All Donations -->
+                    <div style="margin-top: 30px;">
+                        <h4>All Blood Donations</h4>
+                        <div id="admin-all-donations">
+                            <!-- All donations list -->
+                        </div>
+                    </div>
+
+                    <!-- Blood Requests Management -->
+                    <div style="margin-top: 30px;">
+                        <h4>Emergency Blood Requests</h4>
+                        <div id="admin-blood-requests">
+                            <!-- Blood requests management -->
+                        </div>
                     </div>
                 </div>
             </div>

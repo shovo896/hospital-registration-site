@@ -1,13 +1,15 @@
+
 let isAdminLoggedIn = false;
 
 // Default admin credentials (can be changed)
 const adminCredentials = {
     username: 'admin',
-    password: 'admin123'
+    password: 'bouu'
 };
 
 
 // DATA STORAGE & INITIALIZATION
+
 
 let hospitalData = {
     patients: [],
@@ -81,7 +83,7 @@ function initializeSampleData() {
         },
         {
             id: 'D004',
-            name: 'Dr. Nadia Islam',
+            name: 'Dr. Tasin Shifa ',
             specialization: 'Gynecologist',
             phone: '01611-456789',
             photo: '',
@@ -184,9 +186,75 @@ function showAdminTab(tabId) {
     }
 }
 
-//
-// PATIENT REGISTRATION
 
+// PATIENT REGISTRATION & LOGIN
+
+
+function showPatientAuth() {
+    if (currentPatient) {
+        // Already logged in - show profile or logout
+        if (confirm(`Logged in as: ${currentPatient.name}\n\nDo you want to logout?`)) {
+            logoutPatient();
+        }
+    } else {
+        showSection('patient-register');
+    }
+}
+
+function updatePatientAuthButton() {
+    const btn = document.getElementById('patient-auth-btn');
+    if (currentPatient) {
+        btn.textContent = `👤 ${currentPatient.name}`;
+        btn.style.background = '#10b981';
+        btn.style.color = 'white';
+    } else {
+        btn.textContent = 'Login / Register';
+        btn.style.background = '';
+        btn.style.color = '';
+    }
+}
+
+function logoutPatient() {
+    currentPatient = null;
+    localStorage.removeItem('currentPatient');
+    updatePatientAuthButton();
+    showToast('Logged out successfully');
+    showSection('patient-home');
+}
+
+function showLoginForm() {
+    document.getElementById('login-section').style.display = 'block';
+    document.getElementById('registration-section').style.display = 'none';
+    document.getElementById('registration-status').style.display = 'none';
+}
+
+function showRegistrationForm() {
+    document.getElementById('login-section').style.display = 'none';
+    document.getElementById('registration-section').style.display = 'block';
+    document.getElementById('registration-status').style.display = 'none';
+}
+
+// Patient Login Form Handler
+document.getElementById('patient-login-form')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const phone = document.getElementById('login-phone').value;
+    const patient = hospitalData.patients.find(p => p.phone === phone);
+
+    if (patient) {
+        currentPatient = patient;
+        localStorage.setItem('currentPatient', JSON.stringify(patient));
+        updatePatientAuthButton();
+        
+        showToast(`Welcome back, ${patient.name}!`);
+        showSection('patient-home');
+        this.reset();
+    } else {
+        const statusDiv = document.getElementById('registration-status');
+        statusDiv.className = 'status-message error';
+        statusDiv.textContent = 'Phone number not found! Please register first.';
+    }
+});
 
 // Admin Login Form Handler
 document.getElementById('admin-login-form')?.addEventListener('submit', function(e) {
@@ -236,10 +304,21 @@ function logoutAdmin() {
 document.getElementById('registration-form')?.addEventListener('submit', function(e) {
     e.preventDefault();
 
+    const phone = document.getElementById('patient-phone').value;
+    
+    // Check if phone already exists
+    const existingPatient = hospitalData.patients.find(p => p.phone === phone);
+    if (existingPatient) {
+        const statusDiv = document.getElementById('registration-status');
+        statusDiv.className = 'status-message error';
+        statusDiv.textContent = 'Phone number already registered! Please login instead.';
+        return;
+    }
+
     const patient = {
         id: 'P' + Date.now(),
         name: document.getElementById('patient-name').value,
-        phone: document.getElementById('patient-phone').value,
+        phone: phone,
         age: document.getElementById('patient-age').value,
         bloodGroup: document.getElementById('patient-blood').value,
         registrationDate: new Date().toISOString()
@@ -247,6 +326,7 @@ document.getElementById('registration-form')?.addEventListener('submit', functio
 
     hospitalData.patients.push(patient);
     currentPatient = patient;
+    localStorage.setItem('currentPatient', JSON.stringify(patient));
     hospitalData.analytics.totalPatients = hospitalData.patients.length;
     
     saveData();
@@ -255,6 +335,7 @@ document.getElementById('registration-form')?.addEventListener('submit', functio
     statusDiv.className = 'status-message success';
     statusDiv.textContent = `Registration successful! Your Patient ID: ${patient.id}`;
 
+    updatePatientAuthButton();
     showToast('Registration successful!');
 
     // Reset form
@@ -304,6 +385,115 @@ function loadDoctorsGrid() {
 
 let selectedDoctor = null;
 
+// Maximum appointments per slot
+const MAX_APPOINTMENTS_PER_SLOT = 5; // Each slot can have max 5 appointments
+
+// All available slots
+const ALL_TIME_SLOTS = [
+    { value: '09:00-10:00', label: '09:00 AM - 10:00 AM' },
+    { value: '10:00-11:00', label: '10:00 AM - 11:00 AM' },
+    { value: '11:00-12:00', label: '11:00 AM - 12:00 PM' },
+    { value: '12:00-13:00', label: '12:00 PM - 01:00 PM' },
+    { value: '14:00-15:00', label: '02:00 PM - 03:00 PM' },
+    { value: '15:00-16:00', label: '03:00 PM - 04:00 PM' },
+    { value: '16:00-17:00', label: '04:00 PM - 05:00 PM' }
+];
+
+function openAppointmentModal(doctor) {
+    if (!currentPatient) {
+        showToast('Please login first!');
+        showSection('patient-register');
+        return;
+    }
+
+    selectedDoctor = doctor;
+    
+    const modal = document.getElementById('appointment-modal');
+    const doctorInfo = document.getElementById('selected-doctor-info');
+    
+    doctorInfo.innerHTML = `
+        <div style="text-align: center; margin-bottom: 20px;">
+            <h3>${doctor.name}</h3>
+            <p>${doctor.specialization}</p>
+            <p>Consultation Fee: ৳${doctor.fee}</p>
+        </div>
+    `;
+
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('appointment-date').setAttribute('min', today);
+    
+    // Reset slot selector
+    const slotSelect = document.getElementById('appointment-slot');
+    slotSelect.innerHTML = '<option value="">Select Date First</option>';
+
+    modal.classList.add('active');
+}
+
+// Update available slots when date changes
+document.getElementById('appointment-date')?.addEventListener('change', function() {
+    const selectedDate = this.value;
+    const doctorId = selectedDoctor.id;
+    
+    updateAvailableSlots(doctorId, selectedDate);
+});
+
+function updateAvailableSlots(doctorId, date) {
+    const slotSelect = document.getElementById('appointment-slot');
+    const slotsInfo = document.getElementById('slots-info');
+    
+    // Count existing appointments for each slot on this date
+    const existingAppointments = hospitalData.appointments.filter(apt => 
+        apt.doctorId === doctorId && apt.date === date
+    );
+    
+    // Count appointments per slot
+    const slotCounts = {};
+    existingAppointments.forEach(apt => {
+        slotCounts[apt.slot] = (slotCounts[apt.slot] || 0) + 1;
+    });
+    
+    // Build slot options
+    let availableCount = 0;
+    let fullyBookedCount = 0;
+    slotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+    
+    ALL_TIME_SLOTS.forEach(slot => {
+        const count = slotCounts[slot.value] || 0;
+        const remaining = MAX_APPOINTMENTS_PER_SLOT - count;
+        
+        const option = document.createElement('option');
+        option.value = slot.value;
+        
+        if (remaining > 0) {
+            option.textContent = `${slot.label} - ${remaining} slots available`;
+            availableCount++;
+        } else {
+            option.textContent = `${slot.label} - FULLY BOOKED`;
+            option.disabled = true;
+            option.style.color = '#ef4444';
+            fullyBookedCount++;
+        }
+        
+        slotSelect.appendChild(option);
+    });
+    
+    // Update info message
+    if (availableCount === 0) {
+        slotsInfo.innerHTML = `
+            <span style="color: #ef4444; font-weight: bold;">⚠️ All slots fully booked for this date!</span><br>
+            Please select another date.
+        `;
+        slotsInfo.style.background = '#fee2e2';
+    } else {
+        slotsInfo.innerHTML = `
+            <span style="color: #059669; font-weight: bold;">✓ ${availableCount} slot(s) available</span><br>
+            ${fullyBookedCount > 0 ? `<span style="color: #ef4444;">${fullyBookedCount} slot(s) fully booked</span>` : ''}
+        `;
+        slotsInfo.style.background = '#f0f9ff';
+    }
+}
+
 function openAppointmentModal(doctor) {
     if (!currentPatient && hospitalData.patients.length === 0) {
         showToast('Please register first!');
@@ -338,6 +528,22 @@ function openAppointmentModal(doctor) {
 document.getElementById('appointment-form')?.addEventListener('submit', function(e) {
     e.preventDefault();
 
+    const selectedDate = document.getElementById('appointment-date').value;
+    const selectedSlot = document.getElementById('appointment-slot').value;
+
+    // Validate slot availability again before booking
+    const existingAppointments = hospitalData.appointments.filter(apt => 
+        apt.doctorId === selectedDoctor.id && 
+        apt.date === selectedDate && 
+        apt.slot === selectedSlot
+    );
+
+    if (existingAppointments.length >= MAX_APPOINTMENTS_PER_SLOT) {
+        showToast('Sorry! This slot is now fully booked. Please select another slot.');
+        updateAvailableSlots(selectedDoctor.id, selectedDate);
+        return;
+    }
+
     const appointment = {
         id: 'APT' + Date.now(),
         patientId: currentPatient.id,
@@ -345,8 +551,8 @@ document.getElementById('appointment-form')?.addEventListener('submit', function
         patientPhone: currentPatient.phone,
         doctorId: selectedDoctor.id,
         doctorName: selectedDoctor.name,
-        date: document.getElementById('appointment-date').value,
-        slot: document.getElementById('appointment-slot').value,
+        date: selectedDate,
+        slot: selectedSlot,
         status: 'scheduled',
         bookingTime: new Date().toISOString(),
         tokenNumber: generateToken()
@@ -367,12 +573,94 @@ document.getElementById('appointment-form')?.addEventListener('submit', function
     showToast(`Appointment booked successfully! Token: ${appointment.tokenNumber}`);
     closeModal('appointment-modal');
     this.reset();
+    
+    // Show appointment details
+    setTimeout(() => {
+        alert(`Appointment Confirmed!\n\nDoctor: ${selectedDoctor.name}\nDate: ${selectedDate}\nTime: ${selectedSlot}\nToken: ${appointment.tokenNumber}\n\nPlease arrive 10 minutes early.`);
+    }, 500);
 });
 
+
 // DIAGNOSTIC SERVICES
-// 
 
 let selectedDiagnostic = null;
+
+const MAX_DIAGNOSTIC_PER_SLOT = 10; // Diagnostic tests can have more slots
+
+const DIAGNOSTIC_TIME_SLOTS = [
+    { value: '08:00-09:00', label: '08:00 AM - 09:00 AM' },
+    { value: '09:00-10:00', label: '09:00 AM - 10:00 AM' },
+    { value: '10:00-11:00', label: '10:00 AM - 11:00 AM' },
+    { value: '11:00-12:00', label: '11:00 AM - 12:00 PM' },
+    { value: '14:00-15:00', label: '02:00 PM - 03:00 PM' },
+    { value: '15:00-16:00', label: '03:00 PM - 04:00 PM' }
+];
+
+function bookDiagnostic(testType) {
+    if (!currentPatient) {
+        showToast('Please login first!');
+        showSection('patient-register');
+        return;
+    }
+
+    selectedDiagnostic = testType;
+
+    const modal = document.getElementById('diagnostic-modal');
+    const diagnosticInfo = document.getElementById('selected-diagnostic-info');
+
+    diagnosticInfo.innerHTML = `
+        <div style="text-align: center; margin-bottom: 20px;">
+            <h3>${testType}</h3>
+            <p>Diagnostic Test Booking</p>
+        </div>
+    `;
+
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('diagnostic-date').setAttribute('min', today);
+
+    modal.classList.add('active');
+}
+
+// Update diagnostic slots when date changes
+document.getElementById('diagnostic-date')?.addEventListener('change', function() {
+    const selectedDate = this.value;
+    updateDiagnosticSlots(selectedDiagnostic, selectedDate);
+});
+
+function updateDiagnosticSlots(testType, date) {
+    const slotSelect = document.getElementById('diagnostic-slot');
+    
+    // Count existing bookings for each slot
+    const existingBookings = hospitalData.diagnosticBookings.filter(booking => 
+        booking.testType === testType && booking.date === date
+    );
+    
+    const slotCounts = {};
+    existingBookings.forEach(booking => {
+        slotCounts[booking.slot] = (slotCounts[booking.slot] || 0) + 1;
+    });
+    
+    // Build slot options
+    slotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+    
+    DIAGNOSTIC_TIME_SLOTS.forEach(slot => {
+        const count = slotCounts[slot.value] || 0;
+        const remaining = MAX_DIAGNOSTIC_PER_SLOT - count;
+        
+        const option = document.createElement('option');
+        option.value = slot.value;
+        
+        if (remaining > 0) {
+            option.textContent = `${slot.label} - ${remaining} slots available`;
+        } else {
+            option.textContent = `${slot.label} - FULLY BOOKED`;
+            option.disabled = true;
+            option.style.color = '#ef4444';
+        }
+        
+        slotSelect.appendChild(option);
+    });
+}
 
 function bookDiagnostic(testType) {
     if (!currentPatient && hospitalData.patients.length === 0) {
@@ -406,14 +694,30 @@ function bookDiagnostic(testType) {
 document.getElementById('diagnostic-form')?.addEventListener('submit', function(e) {
     e.preventDefault();
 
+    const selectedDate = document.getElementById('diagnostic-date').value;
+    const selectedSlot = document.getElementById('diagnostic-slot').value;
+
+    // Validate slot availability
+    const existingBookings = hospitalData.diagnosticBookings.filter(booking => 
+        booking.testType === selectedDiagnostic && 
+        booking.date === selectedDate && 
+        booking.slot === selectedSlot
+    );
+
+    if (existingBookings.length >= MAX_DIAGNOSTIC_PER_SLOT) {
+        showToast('Sorry! This slot is fully booked. Please select another slot.');
+        updateDiagnosticSlots(selectedDiagnostic, selectedDate);
+        return;
+    }
+
     const booking = {
         id: 'DIAG' + Date.now(),
         patientId: currentPatient.id,
         patientName: currentPatient.name,
         patientPhone: currentPatient.phone,
         testType: selectedDiagnostic,
-        date: document.getElementById('diagnostic-date').value,
-        slot: document.getElementById('diagnostic-slot').value,
+        date: selectedDate,
+        slot: selectedSlot,
         status: 'scheduled',
         bookingTime: new Date().toISOString(),
         tokenNumber: generateToken()
@@ -433,6 +737,10 @@ document.getElementById('diagnostic-form')?.addEventListener('submit', function(
     showToast(`Diagnostic test booked successfully! Token: ${booking.tokenNumber}`);
     closeModal('diagnostic-modal');
     this.reset();
+    
+    setTimeout(() => {
+        alert(`Booking Confirmed!\n\nTest: ${selectedDiagnostic}\nDate: ${selectedDate}\nTime: ${selectedSlot}\nToken: ${booking.tokenNumber}\n\nPlease arrive 15 minutes early and fast for 8 hours if required.`);
+    }, 500);
 });
 
 
@@ -442,14 +750,10 @@ document.getElementById('diagnostic-form')?.addEventListener('submit', function(
 let selectedWard = null;
 
 function requestAdmission(wardType) {
-    if (!currentPatient && hospitalData.patients.length === 0) {
-        showToast('Please register first!');
+    if (!currentPatient) {
+        showToast('Please login first!');
         showSection('patient-register');
         return;
-    }
-
-    if (!currentPatient) {
-        currentPatient = hospitalData.patients[hospitalData.patients.length - 1];
     }
 
     selectedWard = wardType;
@@ -537,6 +841,7 @@ function loadAdmissionRequests() {
         list.appendChild(item);
     });
 }
+
 
 // QUEUE MANAGEMENT
 
@@ -983,6 +1288,7 @@ function updateQueueDisplays() {
 }
 
 
+// ADMIN - WARD MANAGEMENT
 
 function loadWardRequestsAdmin() {
     const container = document.getElementById('ward-requests-admin');
@@ -1073,6 +1379,8 @@ function rejectAdmission(admissionId) {
 }
 
 
+// ANALYTICS & ALERTS
+
 
 function updateAnalytics() {
     // Update stats
@@ -1153,7 +1461,9 @@ function loadAlerts() {
     });
 }
 
-
+//
+// UTILITY FUNCTIONS
+//
 
 function generateToken() {
     return 'TKN' + Math.random().toString(36).substr(2, 6).toUpperCase();
@@ -1274,11 +1584,20 @@ function initializeTimers() {
     });
 }
 
-//
+
+// INITIALIZATION
 
 // Load data on page load
 window.addEventListener('DOMContentLoaded', () => {
     loadData();
+    
+    // Restore patient session
+    const savedPatient = localStorage.getItem('currentPatient');
+    if (savedPatient) {
+        currentPatient = JSON.parse(savedPatient);
+        updatePatientAuthButton();
+    }
+    
     showSection('patient-home');
 });
 

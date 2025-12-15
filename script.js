@@ -1,15 +1,15 @@
 
+
 let isAdminLoggedIn = false;
 
 // Default admin credentials (can be changed)
 const adminCredentials = {
     username: 'admin',
-    password: 'bouu'
+    password: 'admin123'
 };
 
 
 // DATA STORAGE & INITIALIZATION
-
 
 let hospitalData = {
     patients: [],
@@ -20,6 +20,20 @@ let hospitalData = {
     queues: {
         doctors: {},
         diagnostics: {}
+    },
+    bloodBank: {
+        stock: {
+            'A+': 15,
+            'A-': 8,
+            'B+': 12,
+            'B-': 5,
+            'O+': 20,
+            'O-': 6,
+            'AB+': 10,
+            'AB-': 4
+        },
+        donations: [],
+        requests: []
     },
     analytics: {
         totalPatients: 0,
@@ -83,7 +97,7 @@ function initializeSampleData() {
         },
         {
             id: 'D004',
-            name: 'Dr. Tasin Shifa ',
+            name: 'Dr. Nadia Islam',
             specialization: 'Gynecologist',
             phone: '01611-456789',
             photo: '',
@@ -146,6 +160,10 @@ function showSection(sectionId) {
         loadDoctorsGrid();
     } else if (sectionId === 'wards') {
         loadAdmissionRequests();
+    } else if (sectionId === 'blood-bank') {
+        loadBloodStock();
+        loadDonationHistory();
+        loadBloodRequests();
     } else if (sectionId === 'admin') {
         showAdminTab('doctors-mgmt');
         updateAnalytics();
@@ -551,11 +569,14 @@ document.getElementById('appointment-form')?.addEventListener('submit', function
         patientPhone: currentPatient.phone,
         doctorId: selectedDoctor.id,
         doctorName: selectedDoctor.name,
+        specialization: selectedDoctor.specialization,
         date: selectedDate,
         slot: selectedSlot,
         status: 'scheduled',
         bookingTime: new Date().toISOString(),
-        tokenNumber: generateToken()
+        tokenNumber: generateToken(),
+        fee: selectedDoctor.fee,
+        paymentStatus: 'pending'
     };
 
     hospitalData.appointments.push(appointment);
@@ -570,18 +591,19 @@ document.getElementById('appointment-form')?.addEventListener('submit', function
 
     saveData();
 
-    showToast(`Appointment booked successfully! Token: ${appointment.tokenNumber}`);
+    showToast(`Appointment booked! Token: ${appointment.tokenNumber}`);
     closeModal('appointment-modal');
     this.reset();
     
-    // Show appointment details
+    // Open payment modal
     setTimeout(() => {
-        alert(`Appointment Confirmed!\n\nDoctor: ${selectedDoctor.name}\nDate: ${selectedDate}\nTime: ${selectedSlot}\nToken: ${appointment.tokenNumber}\n\nPlease arrive 10 minutes early.`);
+        openPaymentModal(appointment);
     }, 500);
 });
 
 
 // DIAGNOSTIC SERVICES
+
 
 let selectedDiagnostic = null;
 
@@ -740,6 +762,317 @@ document.getElementById('diagnostic-form')?.addEventListener('submit', function(
     
     setTimeout(() => {
         alert(`Booking Confirmed!\n\nTest: ${selectedDiagnostic}\nDate: ${selectedDate}\nTime: ${selectedSlot}\nToken: ${booking.tokenNumber}\n\nPlease arrive 15 minutes early and fast for 8 hours if required.`);
+    }, 500);
+});
+
+
+// BLOOD BANK SYSTEM
+
+
+function loadBloodStock() {
+    const container = document.getElementById('blood-stock-display');
+    container.innerHTML = '';
+
+    Object.keys(hospitalData.bloodBank.stock).forEach(bloodGroup => {
+        const units = hospitalData.bloodBank.stock[bloodGroup];
+        const card = document.createElement('div');
+        
+        let statusClass = '';
+        let statusText = 'Available';
+        
+        if (units === 0) {
+            statusClass = 'out-of-stock';
+            statusText = 'Out of Stock';
+        } else if (units < 5) {
+            statusClass = 'low-stock';
+            statusText = 'Low Stock';
+        }
+        
+        card.className = `blood-group-card ${statusClass}`;
+        card.innerHTML = `
+            <div class="blood-group-label">${bloodGroup}</div>
+            <div class="blood-stock-count">${units} Units</div>
+            <div class="blood-stock-status">${statusText}</div>
+        `;
+        
+        container.appendChild(card);
+    });
+}
+
+function openDonateBloodModal() {
+    if (!currentPatient) {
+        showToast('Please login first!');
+        showSection('patient-register');
+        return;
+    }
+
+    // Pre-fill blood group if available in patient profile
+    if (currentPatient.bloodGroup) {
+        document.getElementById('donate-blood-group').value = currentPatient.bloodGroup;
+    }
+
+    document.getElementById('donate-blood-modal').classList.add('active');
+}
+
+// Blood Donation Form
+document.getElementById('donate-blood-form')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const bloodGroup = document.getElementById('donate-blood-group').value;
+    const units = parseInt(document.getElementById('donate-units').value);
+    const lastDonation = document.getElementById('last-donation-date').value;
+
+    // Check if 3 months have passed since last donation
+    if (lastDonation) {
+        const lastDate = new Date(lastDonation);
+        const today = new Date();
+        const monthsDiff = (today - lastDate) / (1000 * 60 * 60 * 24 * 30);
+        
+        if (monthsDiff < 3) {
+            showToast('Sorry! You must wait 3 months between donations.');
+            return;
+        }
+    }
+
+    const donation = {
+        id: 'DON' + Date.now(),
+        donorId: currentPatient.id,
+        donorName: currentPatient.name,
+        donorPhone: currentPatient.phone,
+        bloodGroup: bloodGroup,
+        units: units,
+        donationDate: new Date().toISOString(),
+        status: 'completed'
+    };
+
+    hospitalData.bloodBank.donations.push(donation);
+    hospitalData.bloodBank.stock[bloodGroup] += units;
+
+    saveData();
+    closeModal('donate-blood-modal');
+    this.reset();
+
+    showToast(`Thank you for donating ${units} unit(s) of ${bloodGroup} blood! You saved lives! ❤️`);
+    loadBloodStock();
+    loadDonationHistory();
+
+    // Show certificate
+    setTimeout(() => {
+        alert(`🎖️ Blood Donation Certificate\n\nDonor: ${currentPatient.name}\nBlood Group: ${bloodGroup}\nUnits: ${units}\nDate: ${formatDateTime(donation.donationDate)}\n\nThank you for being a life saver!\n- IbneSina Hospital`);
+    }, 500);
+});
+
+function openRequestBloodModal() {
+    if (!currentPatient) {
+        showToast('Please login first!');
+        showSection('patient-register');
+        return;
+    }
+
+    // Set minimum datetime to now
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    document.getElementById('request-deadline').setAttribute('min', now.toISOString().slice(0, 16));
+
+    document.getElementById('request-blood-modal').classList.add('active');
+}
+
+// Blood Request Form
+document.getElementById('request-blood-form')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const bloodGroup = document.getElementById('request-blood-group').value;
+    const units = parseInt(document.getElementById('request-units').value);
+
+    // Check stock availability
+    if (hospitalData.bloodBank.stock[bloodGroup] < units) {
+        if (confirm(`Only ${hospitalData.bloodBank.stock[bloodGroup]} unit(s) of ${bloodGroup} available. Do you want to request anyway?`)) {
+            // Continue with request
+        } else {
+            return;
+        }
+    }
+
+    const request = {
+        id: 'REQ' + Date.now(),
+        requesterId: currentPatient.id,
+        requesterName: currentPatient.name,
+        patientName: document.getElementById('request-patient-name').value,
+        bloodGroup: bloodGroup,
+        units: units,
+        reason: document.getElementById('request-reason').value,
+        contact: document.getElementById('request-contact').value,
+        deadline: document.getElementById('request-deadline').value,
+        requestDate: new Date().toISOString(),
+        status: 'pending'
+    };
+
+    hospitalData.bloodBank.requests.push(request);
+    saveData();
+
+    closeModal('request-blood-modal');
+    this.reset();
+
+    showToast('Emergency blood request submitted! Hospital will contact you soon.');
+    loadBloodRequests();
+
+    // Add alert for admin
+    addAlert('danger', `🚨 Emergency: ${units} unit(s) ${bloodGroup} blood needed for ${request.patientName}`);
+});
+
+function loadDonationHistory() {
+    const container = document.getElementById('donation-history-list');
+    
+    if (!currentPatient) {
+        container.innerHTML = '<p>Please login to view donation history.</p>';
+        return;
+    }
+
+    const myDonations = hospitalData.bloodBank.donations.filter(
+        d => d.donorId === currentPatient.id
+    );
+
+    if (myDonations.length === 0) {
+        container.innerHTML = '<p>No donation history yet. Be a hero - donate blood!</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    myDonations.forEach(donation => {
+        const item = document.createElement('div');
+        item.className = 'donation-item';
+        item.innerHTML = `
+            <h4>Blood Group: ${donation.bloodGroup}</h4>
+            <p><strong>Units Donated:</strong> ${donation.units}</p>
+            <p><strong>Date:</strong> ${formatDateTime(donation.donationDate)}</p>
+            <span class="blood-badge donated">✓ Donated</span>
+        `;
+        container.appendChild(item);
+    });
+}
+
+function loadBloodRequests() {
+    const container = document.getElementById('blood-requests-list');
+    
+    const pendingRequests = hospitalData.bloodBank.requests.filter(
+        r => r.status === 'pending'
+    );
+
+    if (pendingRequests.length === 0) {
+        container.innerHTML = '<p>No pending blood requests.</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    pendingRequests.forEach(request => {
+        const item = document.createElement('div');
+        item.className = 'blood-request-item urgent';
+        
+        const deadline = new Date(request.deadline);
+        const isUrgent = (deadline - new Date()) < (24 * 60 * 60 * 1000); // Less than 24 hours
+        
+        item.innerHTML = `
+            <h4>🚨 ${request.bloodGroup} - ${request.units} Unit(s) Needed</h4>
+            <p><strong>Patient:</strong> ${request.patientName}</p>
+            <p><strong>Reason:</strong> ${request.reason}</p>
+            <p><strong>Contact:</strong> ${request.contact}</p>
+            <p><strong>Required By:</strong> ${formatDateTime(request.deadline)}</p>
+            ${isUrgent ? '<span class="blood-badge" style="background: #fee2e2; color: #991b1b;">⚠️ URGENT</span>' : ''}
+            <span class="blood-badge pending">Pending</span>
+        `;
+        container.appendChild(item);
+    });
+}
+
+
+// PAYMENT SYSTEM
+
+
+let currentPaymentData = null;
+
+function openPaymentModal(appointmentData) {
+    currentPaymentData = appointmentData;
+    
+    const modal = document.getElementById('payment-modal');
+    const paymentInfo = document.getElementById('payment-info');
+    
+    paymentInfo.innerHTML = `
+        <h3>Doctor: ${appointmentData.doctorName}</h3>
+        <p>${appointmentData.specialization}</p>
+        <p style="font-size: 24px; font-weight: bold; color: #ef4444; margin-top: 10px;">
+            Amount: ৳${appointmentData.fee}
+        </p>
+    `;
+    
+    modal.classList.add('active');
+}
+
+function updatePaymentFields() {
+    const method = document.getElementById('payment-method').value;
+    
+    // Hide all fields first
+    document.getElementById('mobile-payment-fields').style.display = 'none';
+    document.getElementById('visa-fields').style.display = 'none';
+    document.getElementById('savings-fields').style.display = 'none';
+    
+    // Show relevant fields
+    if (method === 'bkash' || method === 'nagad') {
+        document.getElementById('mobile-payment-fields').style.display = 'block';
+    } else if (method === 'visa') {
+        document.getElementById('visa-fields').style.display = 'block';
+    } else if (method === 'savings') {
+        document.getElementById('savings-fields').style.display = 'block';
+    }
+}
+
+// Payment Form Handler
+document.getElementById('payment-form')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const method = document.getElementById('payment-method').value;
+    
+    const payment = {
+        id: 'PAY' + Date.now(),
+        appointmentId: currentPaymentData.id,
+        patientId: currentPatient.id,
+        amount: currentPaymentData.fee,
+        method: method,
+        paymentDate: new Date().toISOString(),
+        status: 'completed'
+    };
+
+    // Add payment details based on method
+    if (method === 'bkash' || method === 'nagad') {
+        payment.mobileNumber = document.getElementById('mobile-number').value;
+        payment.transactionId = document.getElementById('transaction-id').value;
+    } else if (method === 'visa') {
+        payment.cardNumber = document.getElementById('card-number').value.slice(-4); // Store last 4 digits only
+    } else if (method === 'savings') {
+        payment.accountNumber = document.getElementById('account-number').value;
+        payment.bankName = document.getElementById('bank-name').value;
+    }
+
+    // Save payment
+    if (!hospitalData.payments) {
+        hospitalData.payments = [];
+    }
+    hospitalData.payments.push(payment);
+    
+    // Update appointment payment status
+    const appointment = hospitalData.appointments.find(a => a.id === currentPaymentData.id);
+    if (appointment) {
+        appointment.paymentStatus = 'paid';
+        appointment.paymentId = payment.id;
+    }
+
+    saveData();
+    closeModal('payment-modal');
+    this.reset();
+
+    showToast('Payment successful! Your appointment is confirmed.');
+    
+    setTimeout(() => {
+        alert(`Payment Receipt\n\nAppointment ID: ${currentPaymentData.tokenNumber}\nDoctor: ${currentPaymentData.doctorName}\nAmount Paid: ৳${currentPaymentData.fee}\nPayment Method: ${method.toUpperCase()}\nDate: ${formatDateTime(payment.paymentDate)}\n\nThank you!\n- IbneSina Hospital`);
     }, 500);
 });
 
@@ -1067,7 +1400,6 @@ function updateAverages() {
 
 
 // ADMIN - DOCTORS MANAGEMENT
-
 
 function showAddDoctorForm() {
     document.getElementById('add-doctor-form').style.display = 'block';
@@ -1461,9 +1793,9 @@ function loadAlerts() {
     });
 }
 
-//
+
 // UTILITY FUNCTIONS
-//
+
 
 function generateToken() {
     return 'TKN' + Math.random().toString(36).substr(2, 6).toUpperCase();
@@ -1586,6 +1918,7 @@ function initializeTimers() {
 
 
 // INITIALIZATION
+
 
 // Load data on page load
 window.addEventListener('DOMContentLoaded', () => {

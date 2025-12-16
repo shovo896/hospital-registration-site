@@ -408,35 +408,6 @@ function loadEmployeeDashboard() {
     if (!currentUser) return;
 }
 
-function loadAdminDashboard() {
-    if (!currentUser || currentRole !== 'admin') return;
-    console.log('📊 Loading admin dashboard...');
-    
-    // Load doctors list in admin
-    setTimeout(() => {
-        const container = document.getElementById('doctors-list-admin');
-        if (container) {
-            container.innerHTML = '';
-            hospitalData.doctors.forEach(doctor => {
-                const card = document.createElement('div');
-                card.style.cssText = 'border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px;';
-                card.innerHTML = `
-                    <h3>${doctor.name}</h3>
-                    <p><strong>Specialization:</strong> ${doctor.specialization}</p>
-                    <p><strong>Phone:</strong> ${doctor.phone}</p>
-                    <p><strong>Fee:</strong> ৳${doctor.fee}</p>
-                `;
-                container.appendChild(card);
-            });
-            console.log('✅ Admin doctors loaded:', hospitalData.doctors.length);
-        }
-    }, 100);
-}
-
-function showAdminTab(tabId) {
-    console.log('Admin tab:', tabId);
-}
-
 // ============================================
 // BOOKING FUNCTIONS
 // ============================================
@@ -448,89 +419,7 @@ function openAppointmentModal(doctor) {
     }
     selectedDoctor = doctor;
     document.getElementById('selected-doctor-info').innerHTML = `<h3>${doctor.name}</h3><p>Fee: ৳${doctor.fee}</p>`;
-    
-    // Setup date change listener
-    const dateInput = document.getElementById('appointment-date');
-    if (dateInput) {
-        const today = new Date().toISOString().split('T')[0];
-        dateInput.setAttribute('min', today);
-        
-        // Remove old listener if exists
-        const newDateInput = dateInput.cloneNode(true);
-        dateInput.parentNode.replaceChild(newDateInput, dateInput);
-        
-        // Add new listener
-        newDateInput.addEventListener('change', function() {
-            console.log('📅 Date selected:', this.value);
-            loadAppointmentSlots(this.value);
-        });
-    }
-    
     document.getElementById('appointment-modal').classList.add('active');
-}
-
-function loadAppointmentSlots(selectedDate) {
-    console.log('Loading slots for date:', selectedDate);
-    const slotSelect = document.getElementById('appointment-slot');
-    const slotsInfo = document.getElementById('slots-info');
-    
-    if (!slotSelect) {
-        console.error('Slot select not found!');
-        return;
-    }
-    
-    // Available time slots
-    const timeSlots = [
-        '09:00 AM - 09:30 AM',
-        '09:30 AM - 10:00 AM',
-        '10:00 AM - 10:30 AM',
-        '10:30 AM - 11:00 AM',
-        '11:00 AM - 11:30 AM',
-        '11:30 AM - 12:00 PM',
-        '02:00 PM - 02:30 PM',
-        '02:30 PM - 03:00 PM',
-        '03:00 PM - 03:30 PM',
-        '03:30 PM - 04:00 PM',
-        '04:00 PM - 04:30 PM',
-        '04:30 PM - 05:00 PM'
-    ];
-    
-    // Check existing bookings
-    const existingBookings = hospitalData.appointments.filter(apt => 
-        apt.doctorId === selectedDoctor.id && 
-        apt.date === selectedDate
-    );
-    
-    console.log('Existing bookings:', existingBookings.length);
-    
-    // Clear and populate slots
-    slotSelect.innerHTML = '<option value="">Select Time Slot</option>';
-    
-    let availableCount = 0;
-    timeSlots.forEach(slot => {
-        const bookingsInSlot = existingBookings.filter(apt => apt.slot === slot).length;
-        const available = MAX_APPOINTMENTS_PER_SLOT - bookingsInSlot;
-        
-        if (available > 0) {
-            const option = document.createElement('option');
-            option.value = slot;
-            option.textContent = `${slot} (${available} slots available)`;
-            slotSelect.appendChild(option);
-            availableCount++;
-        }
-    });
-    
-    if (availableCount > 0) {
-        slotsInfo.innerHTML = `✅ ${availableCount} time slots available`;
-        slotsInfo.style.background = '#d1fae5';
-        slotsInfo.style.color = '#065f46';
-        console.log('✅ Loaded', availableCount, 'slots');
-    } else {
-        slotsInfo.innerHTML = '❌ No slots available for this date';
-        slotsInfo.style.background = '#fee2e2';
-        slotsInfo.style.color = '#991b1b';
-        console.log('❌ No slots available');
-    }
 }
 
 function bookDiagnostic(type) {
@@ -740,55 +629,6 @@ function setupEventListeners() {
             loadPatientProfile();
             cancelProfileEdit();
         });
-    }
-    
-    // Appointment form
-    const appointmentForm = document.getElementById('appointment-form');
-    if (appointmentForm) {
-        console.log('📝 Appointment form found');
-        appointmentForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            console.log('📋 Booking appointment...');
-            
-            const date = document.getElementById('appointment-date').value;
-            const slot = document.getElementById('appointment-slot').value;
-            
-            if (!date || !slot) {
-                showToast('Please select date and time slot!');
-                return;
-            }
-            
-            const appointment = {
-                id: 'APT' + Date.now(),
-                patientId: currentUser.id,
-                patientName: currentUser.name,
-                patientPhone: currentUser.phone,
-                doctorId: selectedDoctor.id,
-                doctorName: selectedDoctor.name,
-                date: date,
-                slot: slot,
-                fee: selectedDoctor.fee,
-                status: 'scheduled',
-                bookingTime: new Date().toISOString(),
-                tokenNumber: generateToken()
-            };
-            
-            hospitalData.appointments.push(appointment);
-            saveData();
-            
-            console.log('✅ Appointment booked:', appointment.tokenNumber);
-            
-            showToast(`Appointment booked! Token: ${appointment.tokenNumber}`);
-            closeModal('appointment-modal');
-            this.reset();
-            
-            // Reload appointments if on that tab
-            if (document.getElementById('patient-appointments').classList.contains('active')) {
-                loadPatientAppointments();
-            }
-        });
-    } else {
-        console.warn('⚠️ Appointment form NOT found');
     }
 }
 

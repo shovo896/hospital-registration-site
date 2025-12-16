@@ -1,13 +1,7 @@
-// ============================================
-// IbneSina Hospital Management System
-// Brand New Clean JavaScript
-// ============================================
+
 
 console.log('🏥 IbneSina Hospital System Loading...');
-
-// ============================================
-// GLOBAL VARIABLES
-// ============================================
+// debug korte parlam na to ar muje maff koro  
 
 let currentUser = null;
 let currentRole = null;

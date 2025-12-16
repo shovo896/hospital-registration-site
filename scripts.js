@@ -5,9 +5,6 @@
 
 console.log('🏥 IbneSina Hospital System Loading...');
 
-// ============================================
-// GLOBAL VARIABLES
-// ============================================
 
 let currentUser = null;
 let currentRole = null;

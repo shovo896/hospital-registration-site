@@ -1,12 +1,9 @@
-// ============================================
-// IbneSina Hospital Management System
-// Brand New Clean JavaScript
-// ============================================
+
 
 console.log('🏥 IbneSina Hospital System Loading...');
 
 // ============================================
-// GLOBAL WINDOW FUNCTIONS (Called from HTML)
+
 // ============================================
 
 // These must be on window for HTML onclick/onchange to work

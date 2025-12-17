@@ -446,21 +446,25 @@ function openAppointmentModal(doctor) {
     document.getElementById('selected-doctor-info').innerHTML = `<h3>${doctor.name}</h3><p>Fee: ৳${doctor.fee}</p>`;
     
     // Setup date change listener
-    const dateInput = document.getElementById('appointment-date');
-    if (dateInput) {
-        const today = new Date().toISOString().split('T')[0];
-        dateInput.setAttribute('min', today);
-        
-        // Remove old listener if exists
-        const newDateInput = dateInput.cloneNode(true);
-        dateInput.parentNode.replaceChild(newDateInput, dateInput);
-        
-        // Add new listener
-        newDateInput.addEventListener('change', function() {
-            console.log('📅 Date selected:', this.value);
-            loadAppointmentSlots(this.value);
-        });
-    }
+    // ekhan theke suru 
+    //  Date min set + reset slot (NO event listener here)
+const dateInput = document.getElementById('appointment-date');
+if (dateInput) {
+    const today = new Date().toISOString().split('T')[0];
+    dateInput.setAttribute('min', today);
+    dateInput.value = '';
+}
+
+const slotSelect = document.getElementById('appointment-slot');
+if (slotSelect) {
+    slotSelect.innerHTML = '<option value="">Select Date First</option>';
+}
+
+const slotsInfo = document.getElementById('slots-info');
+if (slotsInfo) {
+    slotsInfo.textContent = 'Select a date to see available slots';
+}
+
     
     document.getElementById('appointment-modal').classList.add('active');
 }

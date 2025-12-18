@@ -191,15 +191,15 @@ body {
 /* Service Cards */
 .services-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 28px;
-    margin-top: 44px;
+    margin-top: 40px;
 }
 
 .service-card {
     position: relative;
     background: var(--card-background);
-    padding: 24px;
+    padding: 28px;
     border-radius: var(--card-radius);
     text-align: center;
     border: 1px solid var(--card-border);
@@ -232,8 +232,8 @@ body {
 }
 
 .service-icon {
-    font-size: 46px;
-    margin-bottom: 12px;
+    font-size: 52px;
+    margin-bottom: 14px;
 }
 
 .service-card h3 {
@@ -1315,7 +1315,7 @@ code {
     }
 
     .services-grid {
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     }
 
     .doctors-grid {

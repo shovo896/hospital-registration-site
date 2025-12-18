@@ -13,20 +13,6 @@ let selectedDiagnostic = null;
 let selectedWard = null;
 let paymentContext = null;
 
-function setAvatar(el, fallbackEl, photoUrl, name) {
-    if (!el) return;
-    const initial = name ? name.charAt(0).toUpperCase() : '';
-    if (photoUrl) {
-        el.classList.add('has-photo');
-        el.style.backgroundImage = `url(${photoUrl})`;
-        if (fallbackEl) fallbackEl.textContent = '';
-    } else {
-        el.classList.remove('has-photo');
-        el.style.backgroundImage = '';
-        if (fallbackEl) fallbackEl.textContent = initial || '?';
-    }
-}
-
 // User databases
 let userData = {
     patients: [],
@@ -58,21 +44,6 @@ let hospitalData = {
     },
     payments: [],
     alerts: []
-};
-
-const diagnosticPrices = {
-    'Blood Test': 800,
-    'X-Ray': 1200,
-    'ECG': 900,
-    'MRI': 5500,
-    'Ultrasound': 1800,
-    'CT Scan': 5200
-};
-
-const wardPricing = {
-    'General': 500,
-    'Cabin': 2000,
-    'ICU': 5000
 };
 
 // Maximum appointments allowed per time slot
@@ -170,11 +141,6 @@ function initializeSampleData() {
     ];
     hospitalData.bloodBank.donations = [
         { id: 'DON1001', donorName: 'Community Donor', bloodGroup: 'B+', units: 1, date: new Date().toISOString(), location: 'IbneSina Blood Center' }
-    ];
-    hospitalData.alerts = [
-        { id: 'AL001', title: 'Spring Wellness Fair', message: 'Free basic checkup and floral therapy corner on Friday.', type: 'info', highlight: '🌸', time: new Date().toISOString() },
-        { id: 'AL002', title: 'Blood Drive Bonus', message: 'Rose badge for all O+ donors this week.', type: 'success', highlight: '🌹', time: new Date().toISOString() },
-        { id: 'AL003', title: 'Maintenance', message: 'MRI wing repainting tonight; expect minor delays.', type: 'warning', highlight: '⚠️', time: new Date().toISOString() }
     ];
     saveData();
 }
@@ -274,6 +240,8 @@ function updateNavigationForRole() {
     document.getElementById('employee-nav').style.display = 'none';
     document.getElementById('admin-nav').style.display = 'none';
 
+    const homeCta = document.getElementById('home-auth-cta');
+
     if (currentRole) {
         document.getElementById('login-btn').style.display = 'none';
         document.getElementById('logout-btn').style.display = 'block';
@@ -285,9 +253,18 @@ function updateNavigationForRole() {
             'admin': 'admin-nav'
         };
         document.getElementById(navButtons[currentRole]).style.display = 'block';
+
+        if (homeCta) {
+            homeCta.textContent = 'Go to Dashboard';
+            homeCta.onclick = () => showSection(getDashboardForRole(currentRole));
+        }
     } else {
         document.getElementById('login-btn').style.display = 'block';
         document.getElementById('logout-btn').style.display = 'none';
+        if (homeCta) {
+            homeCta.textContent = 'Login / Register';
+            homeCta.onclick = () => showSection('login');
+        }
     }
 
     updateHomeCta();
@@ -323,6 +300,16 @@ function refreshAccessDenials() {
             button.onclick = () => showSection('login');
         }
     });
+}
+
+function getDashboardForRole(role) {
+    const dash = {
+        'patient': 'patient-dashboard',
+        'donor': 'donor-dashboard',
+        'employee': 'employee-dashboard',
+        'admin': 'admin'
+    };
+    return dash[role] || 'home';
 }
 
 function checkAuthAndShow(sectionId) {
@@ -362,8 +349,6 @@ function resetSystem() {
 // ============================================
 
 function showSection(sectionId) {
-    updateHomeCta();
-    refreshAccessDenials();
     if (sectionId === 'login' && currentRole) {
         showSection(getDashboardForRole(currentRole));
         showToast('You are already logged in.');
@@ -458,14 +443,6 @@ function loadPatientDashboard() {
     loadPatientProfile();
 }
 
-function syncPatientRecord() {
-    if (!currentUser || currentRole !== 'patient') return;
-    const idx = hospitalData.patients.findIndex(p => p.id === currentUser.id || p.phone === currentUser.phone);
-    if (idx >= 0) {
-        hospitalData.patients[idx] = { ...hospitalData.patients[idx], ...currentUser };
-    }
-}
-
 // ============================================
 // DONOR DASHBOARD
 // ============================================
@@ -505,12 +482,7 @@ function loadDonorProfile() {
     const lastDonation = lastIndex >= 0 ? donations[lastIndex] : null;
     const nextBooking = donations.find(d => new Date(d.date) >= new Date());
 
-    setAvatar(
-        document.getElementById('donor-avatar'),
-        null,
-        currentUser.photo,
-        currentUser.name || 'D'
-    );
+    document.getElementById('donor-avatar').textContent = currentUser.name?.charAt(0) || 'D';
     document.getElementById('donor-name-display').textContent = currentUser.name || 'Donor';
     document.getElementById('donor-id-display').textContent = 'ID: ' + (currentUser.id || 'D' + Date.now());
     document.getElementById('donor-blood-tag').textContent = 'Blood Group: ' + (currentUser.bloodGroup || '-');
@@ -821,7 +793,6 @@ function loadAdminDashboard() {
     renderDiagnosticQueues();
     renderWardRequests();
     renderAdminBloodPanels();
-    renderAdminNotices();
 
     const defaultTab = document.querySelector('#admin .tab-btn.active')?.dataset.tab || 'doctors-mgmt';
     showAdminTab(defaultTab);
@@ -849,8 +820,6 @@ function showAdminTab(tabId) {
         renderDiagnosticQueues();
     } else if (tabId === 'wards-mgmt') {
         renderWardRequests();
-    } else if (tabId === 'notice-mgmt') {
-        renderAdminNotices();
     }
 }
 
@@ -928,81 +897,6 @@ function renderWardRequests() {
             <p style="margin:4px 0 0 0; color:#475569;">Status: ${request.status || 'pending'}</p>
         `;
         container.appendChild(card);
-    });
-}
-
-function renderNoticeBoard() {
-    const board = document.getElementById('notice-board');
-    if (!board) return;
-
-    if (!hospitalData.alerts.length) {
-        board.innerHTML = '<p class="muted">No notices right now.</p>';
-        return;
-    }
-
-    const sorted = [...hospitalData.alerts].sort((a, b) => new Date(b.time) - new Date(a.time));
-    board.innerHTML = '';
-
-    sorted.slice(0, 4).forEach(alert => {
-        const card = document.createElement('div');
-        card.className = `notice-card notice-${alert.type || 'info'}`;
-        const badge = alert.highlight || '🌸';
-        card.innerHTML = `
-            <div class="notice-header">
-                <span class="notice-icon">${badge}</span>
-                <div>
-                    <p class="notice-title">${alert.title}</p>
-                    <p class="notice-time">${formatDateTime(alert.time)}</p>
-                </div>
-            </div>
-            <p class="notice-message">${alert.message}</p>
-            ${alert.image ? `<img class="notice-photo" src="${alert.image}" alt="notice image">` : ''}
-        `;
-        board.appendChild(card);
-    });
-}
-
-function renderAdminNotices() {
-    const adminList = document.getElementById('notice-list-admin');
-    if (!adminList) return;
-
-    adminList.innerHTML = '';
-
-    if (!hospitalData.alerts.length) {
-        adminList.innerHTML = '<p class="muted">No notices yet. Post something bright!</p>';
-        return;
-    }
-
-    const sorted = [...hospitalData.alerts].sort((a, b) => new Date(b.time) - new Date(a.time));
-
-    sorted.forEach(alert => {
-        const card = document.createElement('div');
-        card.className = 'data-card notice-admin-card';
-        card.innerHTML = `
-            <div class="notice-admin-row">
-                <div>
-                    <p class="notice-title" style="margin:0;">${alert.title}</p>
-                    <p class="notice-message" style="margin:4px 0 0 0;">${alert.message}</p>
-                    ${alert.image ? `<img class="notice-photo" src="${alert.image}" alt="notice image">` : ''}
-                    <p class="notice-time" style="margin-top:6px;">${formatDateTime(alert.time)}</p>
-                </div>
-                <div class="notice-admin-meta">
-                    <span class="badge badge-${alert.type || 'info'}">${(alert.type || 'info').toUpperCase()}</span>
-                    <span class="notice-icon" aria-label="accent">${alert.highlight || '🌸'}</span>
-                    <button class="btn btn-secondary" data-id="${alert.id}">Remove</button>
-                </div>
-            </div>
-        `;
-
-        card.querySelector('button').addEventListener('click', () => {
-            hospitalData.alerts = hospitalData.alerts.filter(item => item.id !== alert.id);
-            saveData();
-            renderNoticeBoard();
-            renderAdminNotices();
-            showToast('Notice removed');
-        });
-
-        adminList.appendChild(card);
     });
 }
 
@@ -1394,43 +1288,6 @@ function setupEventListeners() {
         });
     }
 
-    // Admin - Post notice
-    const noticeForm = document.getElementById('notice-form');
-    if (noticeForm) {
-        noticeForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const title = document.getElementById('notice-title').value.trim();
-            const message = document.getElementById('notice-message').value.trim();
-            const type = document.getElementById('notice-type').value;
-            const highlight = document.getElementById('notice-highlight').value.trim() || '🌸';
-            const image = document.getElementById('notice-image').value.trim();
-
-            if (!title || !message) {
-                showToast('Please add a title and message for the notice.');
-                return;
-            }
-
-            const notice = {
-                id: 'AL' + Date.now(),
-                title,
-                message,
-                type,
-                highlight,
-                image,
-                time: new Date().toISOString()
-            };
-
-            hospitalData.alerts.push(notice);
-            saveData();
-            renderNoticeBoard();
-            renderAdminNotices();
-
-            showToast('Notice published to homepage!');
-            this.reset();
-        });
-    }
-
     // Profile edit
     const profileForm = document.getElementById('profile-edit-form');
     if (profileForm) {
@@ -1628,177 +1485,6 @@ function setupEventListeners() {
 
             donationForm.reset();
             updateDonorEligibility();
-        });
-    }
-
-    const diagnosticForm = document.getElementById('diagnostic-form');
-    if (diagnosticForm) {
-        diagnosticForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            if (!currentUser) {
-                showToast('Please login first.');
-                return;
-            }
-
-            const date = document.getElementById('diagnostic-date').value;
-            const slot = document.getElementById('diagnostic-slot').value;
-            const price = diagnosticPrices[selectedDiagnostic] || 1000;
-
-            if (!selectedDiagnostic || !date || !slot) {
-                showToast('Select test, date, and slot.');
-                return;
-            }
-
-            const booking = {
-                id: 'DIAG' + Date.now(),
-                patientId: currentUser.id,
-                patientName: currentUser.name,
-                patientPhone: currentUser.phone,
-                type: selectedDiagnostic,
-                date,
-                slot,
-                price,
-                status: 'scheduled',
-                paymentStatus: 'unpaid'
-            };
-
-            hospitalData.diagnosticBookings.push(booking);
-            saveData();
-
-            showToast(`${booking.type} booked!`);
-            closeModal('diagnostic-modal');
-            diagnosticForm.reset();
-            renderDiagnosticQueues();
-            if (document.getElementById('patient-appointments').classList.contains('active')) {
-                loadPatientAppointments();
-            }
-        });
-    }
-
-    const wardForm = document.getElementById('ward-form');
-    if (wardForm) {
-        wardForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            if (!currentUser) {
-                showToast('Please login first.');
-                return;
-            }
-
-            const reason = document.getElementById('admission-reason').value.trim();
-            const emergency = document.getElementById('emergency-status').value;
-            const price = wardPricing[selectedWard] || 500;
-
-            if (!selectedWard || !reason) {
-                showToast('Please select ward and add a reason.');
-                return;
-            }
-
-            const request = {
-                id: 'WARD' + Date.now(),
-                patientId: currentUser.id,
-                patientName: currentUser.name,
-                ward: selectedWard,
-                reason,
-                emergency,
-                status: emergency === 'yes' ? 'priority' : 'pending',
-                paymentStatus: 'unpaid',
-                price
-            };
-
-            hospitalData.wardAdmissions.push(request);
-            saveData();
-
-            showToast(`${request.ward} admission requested`);
-            closeModal('ward-modal');
-            wardForm.reset();
-            renderWardRequests();
-            if (document.getElementById('patient-appointments').classList.contains('active')) {
-                loadPatientAppointments();
-            }
-        });
-    }
-
-    const paymentForm = document.getElementById('payment-form');
-    if (paymentForm) {
-        paymentForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            if (!paymentContext) {
-                showToast('No payment selected.');
-                return;
-            }
-
-            const method = document.getElementById('payment-method').value;
-            if (!method) {
-                showToast('Select a payment method.');
-                return;
-            }
-
-            let reference = '';
-            if (method === 'bkash' || method === 'nagad') {
-                const mobile = document.getElementById('mobile-number').value.trim();
-                const trx = document.getElementById('transaction-id').value.trim();
-                if (!mobile || !trx) {
-                    showToast('Enter mobile number and transaction ID.');
-                    return;
-                }
-                reference = `${method.toUpperCase()} ${mobile} / ${trx}`;
-            } else if (method === 'visa') {
-                const card = document.getElementById('card-number').value.trim();
-                const expiry = document.getElementById('card-expiry').value.trim();
-                const cvv = document.getElementById('card-cvv').value.trim();
-                const name = document.getElementById('card-name').value.trim();
-                if (!card || !expiry || !cvv || !name) {
-                    showToast('Fill all card details.');
-                    return;
-                }
-                reference = `VISA ****${card.slice(-4)} exp ${expiry}`;
-            } else if (method === 'savings') {
-                const acc = document.getElementById('account-number').value.trim();
-                const holder = document.getElementById('account-holder').value.trim();
-                const bank = document.getElementById('bank-name').value;
-                if (!acc || !holder || !bank) {
-                    showToast('Complete bank details.');
-                    return;
-                }
-                reference = `${bank} • ${holder} • ${acc}`;
-            } else if (method === 'cash') {
-                reference = 'Cash payment at hospital';
-            }
-
-            const payment = {
-                id: 'PAY' + Date.now(),
-                ...paymentContext,
-                method,
-                reference,
-                userId: currentUser?.id || 'guest',
-                role: currentRole || 'guest',
-                time: new Date().toISOString()
-            };
-
-            hospitalData.payments.push(payment);
-
-            if (paymentContext.type === 'appointment') {
-                const target = hospitalData.appointments.find(a => a.id === paymentContext.targetId);
-                if (target) target.paymentStatus = 'paid';
-            } else if (paymentContext.type === 'diagnostic') {
-                const target = hospitalData.diagnosticBookings.find(b => b.id === paymentContext.targetId);
-                if (target) target.paymentStatus = 'paid';
-            } else if (paymentContext.type === 'ward') {
-                const target = hospitalData.wardAdmissions.find(w => w.id === paymentContext.targetId);
-                if (target) target.paymentStatus = 'paid';
-            }
-
-            saveData();
-            loadPatientAppointments();
-            renderDiagnosticQueues();
-            renderWardRequests();
-
-            showToast('Payment recorded. Thank you!');
-            closeModal('payment-modal');
-            paymentContext = null;
         });
     }
 }

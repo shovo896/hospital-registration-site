@@ -45,6 +45,9 @@ let hospitalData = {
     alerts: []
 };
 
+// Maximum appointments allowed per time slot
+const MAX_APPOINTMENTS_PER_SLOT = 3;
+
 // ============================================
 // DATA MANAGEMENT
 // ============================================
@@ -469,70 +472,6 @@ if (slotsInfo) {
     document.getElementById('appointment-modal').classList.add('active');
 }
 
-function loadAppointmentSlots(selectedDate) {
-    console.log('Loading slots for date:', selectedDate);
-    const slotSelect = document.getElementById('appointment-slot');
-    const slotsInfo = document.getElementById('slots-info');
-    
-    if (!slotSelect) {
-        console.error('Slot select not found!');
-        return;
-    }
-    
-    // Available time slots
-    const timeSlots = [
-        '09:00 AM - 09:30 AM',
-        '09:30 AM - 10:00 AM',
-        '10:00 AM - 10:30 AM',
-        '10:30 AM - 11:00 AM',
-        '11:00 AM - 11:30 AM',
-        '11:30 AM - 12:00 PM',
-        '02:00 PM - 02:30 PM',
-        '02:30 PM - 03:00 PM',
-        '03:00 PM - 03:30 PM',
-        '03:30 PM - 04:00 PM',
-        '04:00 PM - 04:30 PM',
-        '04:30 PM - 05:00 PM'
-    ];
-    
-    // Check existing bookings
-    const existingBookings = hospitalData.appointments.filter(apt => 
-        apt.doctorId === selectedDoctor.id && 
-        apt.date === selectedDate
-    );
-    
-    console.log('Existing bookings:', existingBookings.length);
-    
-    // Clear and populate slots
-    slotSelect.innerHTML = '<option value="">Select Time Slot</option>';
-    
-    let availableCount = 0;
-    timeSlots.forEach(slot => {
-        const bookingsInSlot = existingBookings.filter(apt => apt.slot === slot).length;
-        const available = MAX_APPOINTMENTS_PER_SLOT - bookingsInSlot;
-        
-        if (available > 0) {
-            const option = document.createElement('option');
-            option.value = slot;
-            option.textContent = `${slot} (${available} slots available)`;
-            slotSelect.appendChild(option);
-            availableCount++;
-        }
-    });
-    
-    if (availableCount > 0) {
-        slotsInfo.innerHTML = `✅ ${availableCount} time slots available`;
-        slotsInfo.style.background = '#d1fae5';
-        slotsInfo.style.color = '#065f46';
-        console.log('✅ Loaded', availableCount, 'slots');
-    } else {
-        slotsInfo.innerHTML = '❌ No slots available for this date';
-        slotsInfo.style.background = '#fee2e2';
-        slotsInfo.style.color = '#991b1b';
-        console.log('❌ No slots available');
-    }
-}
-
 function bookDiagnostic(type) {
     if (!currentUser) {
         showToast('Please login!');
@@ -749,15 +688,27 @@ function setupEventListeners() {
         appointmentForm.addEventListener('submit', function(e) {
             e.preventDefault();
             console.log('📋 Booking appointment...');
-            
+
             const date = document.getElementById('appointment-date').value;
             const slot = document.getElementById('appointment-slot').value;
-            
+
             if (!date || !slot) {
                 showToast('Please select date and time slot!');
                 return;
             }
-            
+
+            const bookingsForSlot = hospitalData.appointments.filter(apt =>
+                apt.doctorId === selectedDoctor.id &&
+                apt.date === date &&
+                apt.slot === slot
+            ).length;
+
+            if (bookingsForSlot >= MAX_APPOINTMENTS_PER_SLOT) {
+                showToast('Selected slot is full. Please choose another time.');
+                loadAvailableTimeSlots();
+                return;
+            }
+
             const appointment = {
                 id: 'APT' + Date.now(),
                 patientId: currentUser.id,
@@ -775,10 +726,11 @@ function setupEventListeners() {
             
             hospitalData.appointments.push(appointment);
             saveData();
-            
+
             console.log('✅ Appointment booked:', appointment.tokenNumber);
-            
+
             showToast(`Appointment booked! Token: ${appointment.tokenNumber}`);
+            loadAvailableTimeSlots();
             closeModal('appointment-modal');
             this.reset();
             
@@ -865,64 +817,60 @@ window.addEventListener('click', (e) => {
 });
 
 console.log('✅ Script loaded!');
-// clean code er practice er jonno in future 864 line theke delete kore dibo
-function loadAvailableTimeSlots() {
-    const date = document.getElementById('appointmentDate').value;
-    const slotSelect = document.getElementById('timeSlot');
-
-    console.log('📅 Selected date:', date);
-
-    slotSelect.innerHTML = '<option value="">Select Time Slot</option>';
-
-    if (!date) return;
-
-    // Dummy slots (later doctor wise banানো যাবে)
-    const slots = [
-        '09:00 AM - 09:30 AM',
-        '09:30 AM - 10:00 AM',
-        '10:00 AM - 10:30 AM',
-        '11:00 AM - 11:30 AM',
-        '03:00 PM - 03:30 PM'
-    ];
-
-    slots.forEach(slot => {
-        const option = document.createElement('option');
-        option.value = slot;
-        option.textContent = slot;
-        slotSelect.appendChild(option);
-    });
-}
-// ei porjonto delete korbo 
-
-// newly called 
 function loadAvailableTimeSlots() {
     const date = document.getElementById('appointment-date').value;
     const slotSelect = document.getElementById('appointment-slot');
     const info = document.getElementById('slots-info');
 
-    console.log('📅 Selected date:', date);
-
     slotSelect.innerHTML = '<option value="">Select Time Slot</option>';
 
-    if (!date) {
+    if (!date || !selectedDoctor) {
         info.textContent = 'Select a date to see available slots';
+        info.style.background = '#f0f9ff';
+        info.style.color = '#0c4a6e';
         return;
     }
 
-    const slots = [
+    const timeSlots = [
         '09:00 AM - 09:30 AM',
         '09:30 AM - 10:00 AM',
         '10:00 AM - 10:30 AM',
+        '10:30 AM - 11:00 AM',
         '11:00 AM - 11:30 AM',
-        '03:00 PM - 03:30 PM'
+        '11:30 AM - 12:00 PM',
+        '02:00 PM - 02:30 PM',
+        '02:30 PM - 03:00 PM',
+        '03:00 PM - 03:30 PM',
+        '03:30 PM - 04:00 PM',
+        '04:00 PM - 04:30 PM',
+        '04:30 PM - 05:00 PM'
     ];
 
-    slots.forEach(slot => {
-        const opt = document.createElement('option');
-        opt.value = slot;
-        opt.textContent = slot;
-        slotSelect.appendChild(opt);
+    const existingBookings = hospitalData.appointments.filter(apt =>
+        apt.doctorId === selectedDoctor.id && apt.date === date
+    );
+
+    let availableCount = 0;
+    timeSlots.forEach(slot => {
+        const bookingsInSlot = existingBookings.filter(apt => apt.slot === slot).length;
+        const available = MAX_APPOINTMENTS_PER_SLOT - bookingsInSlot;
+
+        if (available > 0) {
+            const option = document.createElement('option');
+            option.value = slot;
+            option.textContent = `${slot} (${available} slots available)`;
+            slotSelect.appendChild(option);
+            availableCount++;
+        }
     });
 
-    info.textContent = `Available slots for ${date}`;
+    if (availableCount > 0) {
+        info.textContent = `✅ ${availableCount} time slots available for ${date}`;
+        info.style.background = '#d1fae5';
+        info.style.color = '#065f46';
+    } else {
+        info.textContent = '❌ No slots available for this date';
+        info.style.background = '#fee2e2';
+        info.style.color = '#991b1b';
+    }
 }

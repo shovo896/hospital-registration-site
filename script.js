@@ -11,6 +11,7 @@ let selectedRoleForAuth = null;
 let selectedDoctor = null;
 let selectedDiagnostic = null;
 let selectedWard = null;
+let paymentContext = null;
 
 // User databases
 let userData = {
@@ -533,16 +534,93 @@ function loadPatientDoctors() {
 
 function loadPatientAppointments() {
     const aptList = document.getElementById('patient-appointments-list');
-    if (!aptList) return;
-    
+    const diagList = document.getElementById('patient-diagnostics-list');
+    const wardList = document.getElementById('patient-admissions-list');
+    if (!aptList || !diagList || !wardList) return;
+
     const myApts = hospitalData.appointments.filter(a => a.patientId === currentUser.id);
+    const myDiagnostics = hospitalData.diagnosticBookings.filter(b => b.patientId === currentUser.id);
+    const myAdmissions = hospitalData.wardAdmissions.filter(w => w.patientId === currentUser.id);
+
     aptList.innerHTML = myApts.length ? '' : '<p>No appointments</p>';
-    
+    diagList.innerHTML = myDiagnostics.length ? '' : '<p>No diagnostic bookings</p>';
+    wardList.innerHTML = myAdmissions.length ? '' : '<p>No ward admissions</p>';
+
     myApts.forEach(apt => {
         const div = document.createElement('div');
         div.className = 'profile-item';
-        div.innerHTML = `<h4>Dr. ${apt.doctorName}</h4><p>${apt.date} - ${apt.slot}</p>`;
+        div.innerHTML = `
+            <div>
+                <h4>Dr. ${apt.doctorName}</h4>
+                <p>${apt.date} - ${apt.slot}</p>
+                <p class="muted">Token: ${apt.tokenNumber} • Fee: ৳${apt.fee}</p>
+            </div>
+            <div class="chip-row">
+                <span class="status-pill ${apt.paymentStatus === 'paid' ? 'paid' : 'due'}">${apt.paymentStatus === 'paid' ? 'Paid' : 'Payment Due'}</span>
+            </div>
+        `;
+
+        if (apt.paymentStatus !== 'paid') {
+            const payBtn = document.createElement('button');
+            payBtn.className = 'btn btn-primary btn-compact';
+            payBtn.textContent = `Pay ৳${apt.fee}`;
+            payBtn.onclick = () => openPaymentFor('appointment', apt.id, apt.fee, `Consultation with Dr. ${apt.doctorName}`);
+            div.appendChild(payBtn);
+        }
+
         aptList.appendChild(div);
+    });
+
+    myDiagnostics.forEach(booking => {
+        const div = document.createElement('div');
+        div.className = 'profile-item';
+        const price = booking.price || diagnosticPrices[booking.type] || 1000;
+        div.innerHTML = `
+            <div>
+                <h4>${booking.type}</h4>
+                <p>${booking.date} - ${booking.slot}</p>
+                <p class="muted">Ref: ${booking.id} • Fee: ৳${price}</p>
+            </div>
+            <div class="chip-row">
+                <span class="status-pill ${booking.paymentStatus === 'paid' ? 'paid' : 'due'}">${booking.paymentStatus === 'paid' ? 'Paid' : 'Payment Due'}</span>
+            </div>
+        `;
+
+        if (booking.paymentStatus !== 'paid') {
+            const payBtn = document.createElement('button');
+            payBtn.className = 'btn btn-primary btn-compact';
+            payBtn.textContent = `Pay ৳${price}`;
+            payBtn.onclick = () => openPaymentFor('diagnostic', booking.id, price, `${booking.type} booking`);
+            div.appendChild(payBtn);
+        }
+
+        diagList.appendChild(div);
+    });
+
+    myAdmissions.forEach(request => {
+        const div = document.createElement('div');
+        div.className = 'profile-item';
+        const price = wardPricing[request.ward] || 500;
+        div.innerHTML = `
+            <div>
+                <h4>${request.ward} Ward</h4>
+                <p>${request.reason || 'Admission requested'}</p>
+                <p class="muted">Status: ${request.status || 'pending'} • Fee: ৳${price}/day</p>
+            </div>
+            <div class="chip-row">
+                <span class="status-pill ${request.paymentStatus === 'paid' ? 'paid' : 'due'}">${request.paymentStatus === 'paid' ? 'Paid' : 'Payment Due'}</span>
+            </div>
+        `;
+
+        if (request.paymentStatus !== 'paid') {
+            const payBtn = document.createElement('button');
+            payBtn.className = 'btn btn-primary btn-compact';
+            payBtn.textContent = `Pay ৳${price}`;
+            payBtn.onclick = () => openPaymentFor('ward', request.id, price, `${request.ward} admission`);
+            div.appendChild(payBtn);
+        }
+
+        wardList.appendChild(div);
     });
 }
 
@@ -795,6 +873,11 @@ function bookDiagnostic(type) {
         return;
     }
     selectedDiagnostic = type;
+    const info = document.getElementById('selected-diagnostic-info');
+    if (info) {
+        const price = diagnosticPrices[type] || 1000;
+        info.innerHTML = `<p class="muted">Selected: <strong>${type}</strong> • Estimated fee: ৳${price}</p>`;
+    }
     document.getElementById('diagnostic-modal').classList.add('active');
 }
 
@@ -804,11 +887,52 @@ function requestAdmission(ward) {
         return;
     }
     selectedWard = ward;
+    const info = document.getElementById('selected-ward-info');
+    if (info) {
+        const price = wardPricing[ward] || 500;
+        info.innerHTML = `<p class="muted">Selected: <strong>${ward}</strong> • Rate: ৳${price} / day</p>`;
+    }
     document.getElementById('ward-modal').classList.add('active');
 }
 
 function closeModal(id) {
     document.getElementById(id).classList.remove('active');
+}
+
+function openPaymentFor(type, targetId, amount, description) {
+    paymentContext = { type, targetId, amount, description };
+
+    const info = document.getElementById('payment-info');
+    if (info) {
+        info.innerHTML = `
+            <h3 style="margin-bottom:8px;">${description}</h3>
+            <p style="margin:0; color:#475569;">Amount payable: <strong>৳${amount}</strong></p>
+        `;
+    }
+
+    const form = document.getElementById('payment-form');
+    if (form) {
+        form.reset();
+    }
+    updatePaymentFields();
+    document.getElementById('payment-modal').classList.add('active');
+}
+
+function updatePaymentFields() {
+    const method = document.getElementById('payment-method')?.value;
+    const mobile = document.getElementById('mobile-payment-fields');
+    const visa = document.getElementById('visa-fields');
+    const savings = document.getElementById('savings-fields');
+
+    [mobile, visa, savings].forEach(section => section && (section.style.display = 'none'));
+
+    if (method === 'bkash' || method === 'nagad') {
+        mobile.style.display = 'block';
+    } else if (method === 'visa') {
+        visa.style.display = 'block';
+    } else if (method === 'savings') {
+        savings.style.display = 'block';
+    }
 }
 
 // ============================================
@@ -1080,6 +1204,7 @@ function setupEventListeners() {
                 date: date,
                 slot: slot,
                 fee: selectedDoctor.fee,
+                paymentStatus: 'unpaid',
                 status: 'scheduled',
                 bookingTime: new Date().toISOString(),
                 tokenNumber: generateToken()
@@ -1195,6 +1320,7 @@ window.addEventListener('DOMContentLoaded', () => {
     try {
         loadData();
         console.log('✅ Step 1 complete - Data loaded');
+        renderNoticeBoard();
     } catch (e) {
         console.error('❌ Step 1 failed:', e);
     }

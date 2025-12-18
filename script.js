@@ -688,15 +688,27 @@ function setupEventListeners() {
         appointmentForm.addEventListener('submit', function(e) {
             e.preventDefault();
             console.log('📋 Booking appointment...');
-            
+
             const date = document.getElementById('appointment-date').value;
             const slot = document.getElementById('appointment-slot').value;
-            
+
             if (!date || !slot) {
                 showToast('Please select date and time slot!');
                 return;
             }
-            
+
+            const bookingsForSlot = hospitalData.appointments.filter(apt =>
+                apt.doctorId === selectedDoctor.id &&
+                apt.date === date &&
+                apt.slot === slot
+            ).length;
+
+            if (bookingsForSlot >= MAX_APPOINTMENTS_PER_SLOT) {
+                showToast('Selected slot is full. Please choose another time.');
+                loadAvailableTimeSlots();
+                return;
+            }
+
             const appointment = {
                 id: 'APT' + Date.now(),
                 patientId: currentUser.id,
@@ -714,10 +726,11 @@ function setupEventListeners() {
             
             hospitalData.appointments.push(appointment);
             saveData();
-            
+
             console.log('✅ Appointment booked:', appointment.tokenNumber);
-            
+
             showToast(`Appointment booked! Token: ${appointment.tokenNumber}`);
+            loadAvailableTimeSlots();
             closeModal('appointment-modal');
             this.reset();
             

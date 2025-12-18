@@ -1191,6 +1191,56 @@ code {
 }
 
 /* Responsive Design */
+@media (max-width: 1100px) {
+    .container {
+        padding: 16px;
+    }
+
+    .main-nav .container {
+        padding: 12px 16px;
+    }
+
+    .nav-links {
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .hero {
+        padding: 50px 16px;
+    }
+
+    .hero h1 {
+        font-size: 40px;
+    }
+
+    .hero p {
+        font-size: 18px;
+    }
+
+    .quick-actions {
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .service-card,
+    .diagnostic-card,
+    .doctor-card {
+        padding: 24px;
+    }
+
+    .services-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .doctors-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    }
+
+    .form-container {
+        padding: 32px;
+    }
+}
+
 @media (max-width: 768px) {
     .hero h1 {
         font-size: 32px;

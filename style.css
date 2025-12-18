@@ -716,6 +716,18 @@ body {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
+.profile-avatar.has-photo {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    color: transparent;
+    border: 3px solid rgba(255, 255, 255, 0.7);
+}
+
+.profile-avatar.has-photo span {
+    display: none;
+}
+
 .profile-info {
     flex: 1;
 }
@@ -728,6 +740,16 @@ body {
 .profile-info p {
     margin: 5px 0;
     opacity: 0.9;
+}
+
+.secondary-card {
+    margin-top: 24px;
+}
+
+.stacked-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .profile-details {
@@ -1103,10 +1125,11 @@ code {
 }
 
 .admin-section {
-    background: white;
+    background: var(--card-background);
     padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border-radius: 16px;
+    border: 1px solid var(--card-border);
+    box-shadow: var(--card-shadow);
 }
 
 .admin-section h3 {

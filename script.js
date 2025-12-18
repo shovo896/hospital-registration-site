@@ -144,13 +144,8 @@ function selectRole(role) {
     const passwordField = document.getElementById('password-field');
     const loginPassword = document.getElementById('login-password');
     
-    if (role === 'employee' || role === 'admin') {
-        passwordField.style.display = 'block';
-        loginPassword.required = true;
-    } else {
-        passwordField.style.display = 'none';
-        loginPassword.required = false;
-    }
+    passwordField.style.display = 'block';
+    loginPassword.required = false;
     
     const registerLink = document.getElementById('register-link');
     if (role === 'admin') {
@@ -202,11 +197,13 @@ function updateNavigationForRole() {
     document.getElementById('donor-nav').style.display = 'none';
     document.getElementById('employee-nav').style.display = 'none';
     document.getElementById('admin-nav').style.display = 'none';
-    
+
+    const homeCta = document.getElementById('home-auth-cta');
+
     if (currentRole) {
         document.getElementById('login-btn').style.display = 'none';
         document.getElementById('logout-btn').style.display = 'block';
-        
+
         const navButtons = {
             'patient': 'patient-nav',
             'donor': 'donor-nav',
@@ -214,10 +211,29 @@ function updateNavigationForRole() {
             'admin': 'admin-nav'
         };
         document.getElementById(navButtons[currentRole]).style.display = 'block';
+
+        if (homeCta) {
+            homeCta.textContent = 'Go to Dashboard';
+            homeCta.onclick = () => showSection(getDashboardForRole(currentRole));
+        }
     } else {
         document.getElementById('login-btn').style.display = 'block';
         document.getElementById('logout-btn').style.display = 'none';
+        if (homeCta) {
+            homeCta.textContent = 'Login / Register';
+            homeCta.onclick = () => showSection('login');
+        }
     }
+}
+
+function getDashboardForRole(role) {
+    const dash = {
+        'patient': 'patient-dashboard',
+        'donor': 'donor-dashboard',
+        'employee': 'employee-dashboard',
+        'admin': 'admin'
+    };
+    return dash[role] || 'home';
 }
 
 function checkAuthAndShow(sectionId) {
@@ -260,6 +276,11 @@ function resetSystem() {
 // ============================================
 
 function showSection(sectionId) {
+    if (sectionId === 'login' && currentRole) {
+        showSection(getDashboardForRole(currentRole));
+        showToast('You are already logged in.');
+        return;
+    }
     console.log('📍 Showing section:', sectionId);
     
     document.querySelectorAll('.section').forEach(section => {
@@ -500,14 +521,52 @@ function updateDonorEligibility() {
 
 function loadPatientProfile() {
     if (!currentUser) return;
-    
-    document.getElementById('patient-avatar').textContent = currentUser.name.charAt(0);
+
+    if (!currentUser.medicalHistory) currentUser.medicalHistory = [];
+
+    setAvatar(
+        document.getElementById('patient-avatar'),
+        document.getElementById('patient-avatar-fallback'),
+        currentUser.photo,
+        currentUser.name
+    );
+
     document.getElementById('patient-name-display').textContent = currentUser.name;
     document.getElementById('patient-id-display').textContent = 'ID: ' + currentUser.id;
     document.getElementById('view-phone').textContent = currentUser.phone;
     document.getElementById('view-age').textContent = currentUser.age + ' years';
     document.getElementById('view-blood').textContent = currentUser.bloodGroup || 'N/A';
     document.getElementById('view-registered').textContent = formatDateTime(currentUser.registrationDate);
+    renderPatientHistory();
+}
+
+function renderPatientHistory() {
+    const list = document.getElementById('patient-history-list');
+    if (!list) return;
+
+    const history = currentUser?.medicalHistory || [];
+    list.innerHTML = '';
+
+    if (!history.length) {
+        list.innerHTML = '<p class="muted">No history added yet. Save a diagnosis to see it here.</p>';
+        return;
+    }
+
+    history
+        .slice()
+        .sort((a, b) => new Date(b.loggedAt || b.date || 0) - new Date(a.loggedAt || a.date || 0))
+        .forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'profile-item';
+            div.innerHTML = `
+                <div>
+                    <h4>${item.condition}</h4>
+                    <p class="muted">${item.date ? formatDateTime(item.date) : 'Date not set'}</p>
+                    <p>${item.notes || ''}</p>
+                </div>
+            `;
+            list.appendChild(div);
+        });
 }
 
 function loadPatientDoctors() {
@@ -633,8 +692,9 @@ function toggleProfileEdit() {
         view.style.display = 'none';
         edit.style.display = 'block';
         btn.textContent = '❌ Cancel';
-        
+
         document.getElementById('edit-name').value = currentUser.name;
+        document.getElementById('edit-photo').value = currentUser.photo || '';
         document.getElementById('edit-phone').value = currentUser.phone;
         document.getElementById('edit-age').value = currentUser.age;
         document.getElementById('edit-blood').value = currentUser.bloodGroup || '';
@@ -996,8 +1056,13 @@ function setupEventListeners() {
                 console.log('Total patients:', userData.patients.length);
                 user = userData.patients.find(p => p.phone === username);
                 if (user) {
-                    authenticated = true;
-                    console.log('✅ Patient found:', user.name);
+                    const passwordOk = !user.password || user.password === password;
+                    authenticated = !!passwordOk;
+                    if (authenticated && password && !user.password) {
+                        user.password = password;
+                        saveUserData();
+                    }
+                    console.log(passwordOk ? '✅ Patient found:' : '❌ Wrong password', user.name);
                 } else {
                     console.log('❌ Patient not found');
                 }
@@ -1006,8 +1071,13 @@ function setupEventListeners() {
                 console.log('Total donors:', userData.donors.length);
                 user = userData.donors.find(d => d.phone === username);
                 if (user) {
-                    authenticated = true;
-                    console.log('✅ Donor found:', user.name);
+                    const passwordOk = !user.password || user.password === password;
+                    authenticated = !!passwordOk;
+                    if (authenticated && password && !user.password) {
+                        user.password = password;
+                        saveUserData();
+                    }
+                    console.log(passwordOk ? '✅ Donor found:' : '❌ Wrong password', user.name);
                 } else {
                     console.log('❌ Donor not found');
                 }
@@ -1072,17 +1142,17 @@ function setupEventListeners() {
             const newUser = {
                 id: selectedRoleForAuth.charAt(0).toUpperCase() + Date.now(),
                 name: document.getElementById('register-name').value,
+                photo: document.getElementById('register-photo').value,
                 phone: phone,
                 age: document.getElementById('register-age').value,
                 bloodGroup: document.getElementById('register-blood').value,
-                registrationDate: new Date().toISOString()
+                registrationDate: new Date().toISOString(),
+                medicalHistory: []
             };
-            
+
             console.log('New user data:', newUser);
-            
-            if (selectedRoleForAuth === 'employee') {
-                newUser.password = document.getElementById('register-password').value;
-            }
+
+            newUser.password = document.getElementById('register-password').value;
             
             if (selectedRoleForAuth === 'patient') {
                 userData.patients.push(newUser);
@@ -1152,17 +1222,72 @@ function setupEventListeners() {
             e.preventDefault();
             
             currentUser.name = document.getElementById('edit-name').value;
+            currentUser.photo = document.getElementById('edit-photo').value;
             currentUser.phone = document.getElementById('edit-phone').value;
             currentUser.age = document.getElementById('edit-age').value;
             currentUser.bloodGroup = document.getElementById('edit-blood').value;
-            
+
             saveUserData();
             saveData();
             saveSession();
-            
+            syncPatientRecord();
+
             showToast('Profile updated!');
             loadPatientProfile();
             cancelProfileEdit();
+        });
+    }
+
+    const historyForm = document.getElementById('patient-history-form');
+    if (historyForm) {
+        historyForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!currentUser) return;
+
+            const entry = {
+                condition: document.getElementById('history-condition').value,
+                date: document.getElementById('history-date').value,
+                notes: document.getElementById('history-notes').value,
+                loggedAt: new Date().toISOString()
+            };
+
+            if (!currentUser.medicalHistory) currentUser.medicalHistory = [];
+            currentUser.medicalHistory.push(entry);
+            saveUserData();
+            syncPatientRecord();
+            saveData();
+            renderPatientHistory();
+            showToast('History saved');
+            this.reset();
+        });
+    }
+
+    const passwordForm = document.getElementById('password-update-form');
+    if (passwordForm) {
+        passwordForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!currentUser) return;
+
+            const current = document.getElementById('current-password').value;
+            const next = document.getElementById('new-password').value;
+            const confirm = document.getElementById('confirm-password').value;
+
+            if (currentUser.password && currentUser.password !== current) {
+                showToast('Current password is incorrect.');
+                return;
+            }
+
+            if (!next || next !== confirm) {
+                showToast('New passwords do not match.');
+                return;
+            }
+
+            currentUser.password = next;
+            saveUserData();
+            syncPatientRecord();
+            saveData();
+            showToast('Password saved for your account');
+            this.reset();
         });
     }
     
@@ -1219,7 +1344,9 @@ function setupEventListeners() {
             loadAvailableTimeSlots();
             closeModal('appointment-modal');
             this.reset();
-            
+
+            openPaymentFor('appointment', appointment.id, appointment.fee, `Consultation with Dr. ${appointment.doctorName}`);
+
             // Reload appointments if on that tab
             if (document.getElementById('patient-appointments').classList.contains('active')) {
                 loadPatientAppointments();
@@ -1335,10 +1462,11 @@ window.addEventListener('DOMContentLoaded', () => {
         console.error('❌ Step 2 failed:', e);
     }
     
-    console.log('Step 3: Showing home section...');
+    console.log('Step 3: Showing start section...');
     try {
-        showSection('home');
-        console.log('✅ Step 3 complete - Home section shown');
+        const startSection = currentRole ? getDashboardForRole(currentRole) : 'home';
+        showSection(startSection);
+        console.log('✅ Step 3 complete - Section shown:', startSection);
     } catch (e) {
         console.error('❌ Step 3 failed:', e);
     }

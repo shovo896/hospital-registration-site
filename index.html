@@ -161,6 +161,10 @@
                             <input type="text" id="register-name" required>
                         </div>
                         <div class="form-group">
+                            <label for="register-photo">Profile Photo (URL)</label>
+                            <input type="url" id="register-photo" placeholder="https://example.com/me.jpg">
+                        </div>
+                        <div class="form-group">
                             <label for="register-phone">Phone Number *</label>
                             <input type="tel" id="register-phone" required>
                         </div>
@@ -197,9 +201,9 @@
                                 <option value="accounts">Accounts</option>
                             </select>
                         </div>
-                        <div class="form-group" id="password-register-field" style="display: none;">
+                        <div class="form-group" id="password-register-field">
                             <label for="register-password">Create Password *</label>
-                            <input type="password" id="register-password">
+                            <input type="password" id="register-password" placeholder="Choose a login password">
                         </div>
                         <button type="submit" class="btn btn-primary" style="width: 100%;">Register</button>
                     </form>
@@ -227,9 +231,9 @@
             <!-- Patient Profile Tab -->
             <div id="patient-profile" class="dashboard-tab active">
                 <div class="profile-card">
-                    <div class="profile-header">
-                        <div class="profile-avatar">
-                            <span id="patient-avatar">P</span>
+                        <div class="profile-header">
+                        <div class="profile-avatar" id="patient-avatar">
+                            <span id="patient-avatar-fallback">P</span>
                         </div>
                         <div class="profile-info">
                             <h3 id="patient-name-display">Patient Name</h3>
@@ -266,6 +270,10 @@
                             <input type="text" id="edit-name" required>
                             </div>
                             <div class="form-group">
+                                <label for="edit-photo">Profile Photo (URL)</label>
+                            <input type="url" id="edit-photo" placeholder="https://example.com/me.jpg">
+                            </div>
+                            <div class="form-group">
                                 <label for="edit-phone">Phone Number *</label>
                             <input type="tel" id="edit-phone" required>
                             </div>
@@ -293,6 +301,59 @@
                             </div>
                         </form>
                     </div>
+                </div>
+
+                <div class="profile-card secondary-card">
+                    <div class="profile-header" style="align-items: flex-start;">
+                        <div>
+                            <h3>🩺 Medical History</h3>
+                            <p class="muted">Track diagnoses and notes for future visits.</p>
+                        </div>
+                    </div>
+                    <form id="patient-history-form" class="stacked-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="history-condition">Condition / Diagnosis *</label>
+                                <input type="text" id="history-condition" required placeholder="e.g., Hypertension">
+                            </div>
+                            <div class="form-group">
+                                <label for="history-date">Recorded On</label>
+                                <input type="date" id="history-date">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="history-notes">Notes</label>
+                            <textarea id="history-notes" rows="2" placeholder="Medicines, triggers, doctor advice"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Save History</button>
+                    </form>
+                    <div id="patient-history-list" class="profile-list" style="margin-top: 16px;"></div>
+                </div>
+
+                <div class="profile-card secondary-card">
+                    <div class="profile-header" style="align-items: flex-start;">
+                        <div>
+                            <h3>🔐 Password & Security</h3>
+                            <p class="muted">Save or change your login password for safer access.</p>
+                        </div>
+                    </div>
+                    <form id="password-update-form" class="stacked-form">
+                        <div class="form-group">
+                            <label for="current-password">Current Password</label>
+                            <input type="password" id="current-password" placeholder="Leave blank if you never set one">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="new-password">New Password *</label>
+                                <input type="password" id="new-password" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="confirm-password">Confirm New Password *</label>
+                                <input type="password" id="confirm-password" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-secondary" style="width: 100%;">Save Password</button>
+                    </form>
                 </div>
             </div>
 
@@ -879,6 +940,54 @@
                 </div>
             </div>
 
+            <!-- Notice Board Tab -->
+            <div id="notice-mgmt" class="admin-tab">
+                <div class="admin-section">
+                    <div class="notice-admin-header">
+                        <div>
+                            <p class="eyebrow">Floral Dispatch</p>
+                            <h3>Notice Board Controls</h3>
+                            <p class="muted">Share updates that bloom across the home page.</p>
+                        </div>
+                        <div class="notice-flowers">🌻🌹🌻</div>
+                    </div>
+
+                    <form id="notice-form" class="notice-form">
+                        <div class="form-group">
+                            <label for="notice-title">Notice Title *</label>
+                            <input type="text" id="notice-title" required placeholder="e.g., Rose Week Discount Clinics">
+                        </div>
+                        <div class="form-group">
+                            <label for="notice-message">Message *</label>
+                            <textarea id="notice-message" rows="3" required placeholder="Share the details patients should know"></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="notice-type">Tone</label>
+                                <select id="notice-type">
+                                    <option value="info">Info</option>
+                                    <option value="success">Positive</option>
+                                    <option value="warning">Heads-up</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="notice-image">Photo (optional)</label>
+                                <input type="url" id="notice-image" placeholder="https://image.example.com/poster.jpg">
+                            </div>
+                            <div class="form-group">
+                                <label for="notice-highlight">Emoji Accent</label>
+                                <input type="text" id="notice-highlight" placeholder="🌸 or 🌻" maxlength="2">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Post to Notice Board</button>
+                    </form>
+
+                    <div class="notice-admin-list" id="notice-list-admin">
+                        <!-- Admin notices render here -->
+                    </div>
+                </div>
+            </div>
+
             <!-- Analytics Tab -->
             <div id="analytics" class="admin-tab">
                 <div class="admin-section">
@@ -934,6 +1043,7 @@
                         <option value="bkash">bKash</option>
                         <option value="nagad">Nagad</option>
                         <option value="visa">Visa Card</option>
+                        <option value="cash">Cash (at hospital)</option>
                         <option value="savings">Savings Account</option>
                     </select>
                 </div>

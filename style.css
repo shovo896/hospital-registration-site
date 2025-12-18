@@ -1001,6 +1001,15 @@ code {
     margin-top: 20px;
 }
 
+.data-card {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px 18px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    margin-bottom: 12px;
+}
+
 .table-row {
     display: grid;
     grid-template-columns: 2fr 2fr 1fr 1fr 2fr;

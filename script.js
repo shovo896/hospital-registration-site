@@ -272,6 +272,8 @@ function showSection(sectionId) {
         loadPatientDashboard();
     } else if (sectionId === 'donor-dashboard') {
         loadDonorDashboard();
+    } else if (sectionId === 'admin') {
+        loadAdminDashboard();
     }
 }
 
@@ -410,30 +412,179 @@ function loadEmployeeDashboard() {
 function loadAdminDashboard() {
     if (!currentUser || currentRole !== 'admin') return;
     console.log('📊 Loading admin dashboard...');
-    
-    // Load doctors list in admin
-    setTimeout(() => {
-        const container = document.getElementById('doctors-list-admin');
-        if (container) {
-            container.innerHTML = '';
-            hospitalData.doctors.forEach(doctor => {
-                const card = document.createElement('div');
-                card.style.cssText = 'border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px;';
-                card.innerHTML = `
-                    <h3>${doctor.name}</h3>
-                    <p><strong>Specialization:</strong> ${doctor.specialization}</p>
-                    <p><strong>Phone:</strong> ${doctor.phone}</p>
-                    <p><strong>Fee:</strong> ৳${doctor.fee}</p>
-                `;
-                container.appendChild(card);
-            });
-            console.log('✅ Admin doctors loaded:', hospitalData.doctors.length);
-        }
-    }, 100);
+    renderAdminDoctors();
+    renderDiagnosticQueues();
+    renderWardRequests();
+    renderAdminBloodPanels();
+
+    const defaultTab = document.querySelector('#admin .tab-btn.active')?.dataset.tab || 'doctors-mgmt';
+    showAdminTab(defaultTab);
 }
 
 function showAdminTab(tabId) {
-    console.log('Admin tab:', tabId);
+    if (!currentUser || currentRole !== 'admin') return;
+
+    document.querySelectorAll('#admin .admin-tab').forEach(tab => {
+        const isActive = tab.id === tabId;
+        tab.classList.toggle('active', isActive);
+        tab.style.display = isActive ? 'block' : 'none';
+    });
+
+    document.querySelectorAll('#admin .tab-btn').forEach(btn => {
+        const isActive = btn.dataset.tab === tabId;
+        btn.classList.toggle('active', isActive);
+    });
+
+    if (tabId === 'doctors-mgmt') {
+        renderAdminDoctors();
+    } else if (tabId === 'blood-mgmt') {
+        renderAdminBloodPanels();
+    } else if (tabId === 'diagnostics-mgmt') {
+        renderDiagnosticQueues();
+    } else if (tabId === 'wards-mgmt') {
+        renderWardRequests();
+    }
+}
+
+function renderAdminDoctors() {
+    const container = document.getElementById('doctors-list-admin');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!hospitalData.doctors.length) {
+        container.innerHTML = '<p style="color:#64748b;">No doctors added yet.</p>';
+        return;
+    }
+
+    hospitalData.doctors.forEach(doctor => {
+        const card = document.createElement('div');
+        card.className = 'data-card';
+        card.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                <div>
+                    <h3 style="margin:0 0 6px 0;">${doctor.name}</h3>
+                    <p style="margin:0; color:#0f172a; font-weight:600;">${doctor.specialization}</p>
+                    <p style="margin:4px 0 0 0; color:#475569;">Fee: ৳${doctor.fee}</p>
+                </div>
+                <div style="text-align:right; color:#475569;">
+                    <p style="margin:0;">📞 ${doctor.phone}</p>
+                    <p style="margin:4px 0 0 0;">ID: ${doctor.id}</p>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function renderDiagnosticQueues() {
+    const container = document.getElementById('diagnostic-queues');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!hospitalData.diagnosticBookings.length) {
+        container.innerHTML = '<p style="color:#64748b;">No diagnostic bookings yet.</p>';
+        return;
+    }
+
+    hospitalData.diagnosticBookings.forEach(booking => {
+        const card = document.createElement('div');
+        card.className = 'data-card';
+        card.innerHTML = `
+            <h4 style="margin:0 0 6px 0;">${booking.type}</h4>
+            <p style="margin:0; color:#475569;">Patient: ${booking.patientName} (${booking.patientPhone})</p>
+            <p style="margin:4px 0 0 0; color:#475569;">Status: ${booking.status || 'pending'}</p>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function renderWardRequests() {
+    const container = document.getElementById('ward-requests-admin');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!hospitalData.wardAdmissions.length) {
+        container.innerHTML = '<p style="color:#64748b;">No ward admissions requested.</p>';
+        return;
+    }
+
+    hospitalData.wardAdmissions.forEach(request => {
+        const card = document.createElement('div');
+        card.className = 'data-card';
+        card.innerHTML = `
+            <h4 style="margin:0 0 6px 0;">${request.ward}</h4>
+            <p style="margin:0; color:#475569;">Patient: ${request.patientName}</p>
+            <p style="margin:4px 0 0 0; color:#475569;">Status: ${request.status || 'pending'}</p>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function renderAdminBloodPanels() {
+    const stockContainer = document.getElementById('admin-blood-stock');
+    const donationsContainer = document.getElementById('admin-all-donations');
+    const requestsContainer = document.getElementById('admin-blood-requests');
+
+    if (stockContainer) {
+        stockContainer.innerHTML = '';
+        Object.entries(hospitalData.bloodBank.stock).forEach(([group, units]) => {
+            const card = document.createElement('div');
+            card.className = 'blood-card';
+            card.innerHTML = `<h4>${group}</h4><p>${units} units</p>`;
+            stockContainer.appendChild(card);
+        });
+    }
+
+    if (donationsContainer) {
+        donationsContainer.innerHTML = '';
+        if (!hospitalData.bloodBank.donations.length) {
+            donationsContainer.innerHTML = '<p style="color:#64748b;">No donations recorded.</p>';
+        } else {
+            hospitalData.bloodBank.donations.forEach(donation => {
+                const card = document.createElement('div');
+                card.className = 'data-card';
+                card.innerHTML = `
+                    <h4 style="margin:0 0 6px 0;">${donation.donorName}</h4>
+                    <p style="margin:0; color:#475569;">Group: ${donation.bloodGroup} | Units: ${donation.units}</p>
+                `;
+                donationsContainer.appendChild(card);
+            });
+        }
+    }
+
+    if (requestsContainer) {
+        requestsContainer.innerHTML = '';
+        if (!hospitalData.bloodBank.requests.length) {
+            requestsContainer.innerHTML = '<p style="color:#64748b;">No emergency requests yet.</p>';
+        } else {
+            hospitalData.bloodBank.requests.forEach(req => {
+                const card = document.createElement('div');
+                card.className = 'data-card';
+                card.innerHTML = `
+                    <h4 style="margin:0 0 6px 0;">${req.bloodGroup} needed</h4>
+                    <p style="margin:0; color:#475569;">Units: ${req.units} | Contact: ${req.contact}</p>
+                `;
+                requestsContainer.appendChild(card);
+            });
+        }
+    }
+}
+
+function showAddDoctorForm() {
+    const form = document.getElementById('add-doctor-form');
+    if (form) {
+        form.style.display = 'block';
+    }
+}
+
+function cancelAddDoctor() {
+    const form = document.getElementById('add-doctor-form');
+    const doctorForm = document.getElementById('doctor-form');
+    if (doctorForm) doctorForm.reset();
+    if (form) form.style.display = 'none';
 }
 
 // ============================================
@@ -658,6 +809,41 @@ function setupEventListeners() {
         });
     } else {
         console.warn('⚠️ Register form NOT found!');
+    }
+
+    // Admin - Add doctor
+    const doctorForm = document.getElementById('doctor-form');
+    if (doctorForm) {
+        doctorForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('doctor-name').value.trim();
+            const specialization = document.getElementById('doctor-specialization').value.trim();
+            const phone = document.getElementById('doctor-phone').value.trim();
+            const photo = document.getElementById('doctor-photo').value.trim();
+            const fee = Number(document.getElementById('doctor-fee').value) || 0;
+
+            if (!name || !specialization || !phone) {
+                showToast('Please fill all required doctor fields.');
+                return;
+            }
+
+            const newDoctor = {
+                id: 'D' + String(hospitalData.doctors.length + 1).padStart(3, '0'),
+                name,
+                specialization,
+                phone,
+                photo,
+                fee
+            };
+
+            hospitalData.doctors.push(newDoctor);
+            saveData();
+            renderAdminDoctors();
+            loadPatientDoctors();
+            showToast('Doctor added to roster');
+            cancelAddDoctor();
+        });
     }
 
     // Profile edit

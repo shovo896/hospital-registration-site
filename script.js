@@ -113,6 +113,13 @@ function initializeSampleData() {
         { id: 'D004', name: 'Dr. Nazia Sultana', specialization: 'Gynecologist', phone: '01611-456789', photo: '', fee: 700 },
         { id: 'D005', name: 'Dr. Rafiq Ahmed', specialization: 'Orthopedic', phone: '01511-567890', photo: '', fee: 900 }
     ];
+    hospitalData.bloodBank.requests = [
+        { id: 'REQ101', bloodGroup: 'O+', units: 2, contact: '01711-998877', location: 'ICU Block', priority: 'critical' },
+        { id: 'REQ102', bloodGroup: 'A-', units: 1, contact: '01818-445566', location: 'Emergency Desk', priority: 'urgent' }
+    ];
+    hospitalData.bloodBank.donations = [
+        { id: 'DON1001', donorName: 'Community Donor', bloodGroup: 'B+', units: 1, date: new Date().toISOString(), location: 'IbneSina Blood Center' }
+    ];
     saveData();
 }
 
@@ -308,6 +315,20 @@ function showDonorTab(tabId) {
     });
     const tab = document.getElementById(tabId);
     if (tab) tab.classList.add('active');
+
+    document.querySelectorAll('#donor-dashboard .sub-nav-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = Array.from(document.querySelectorAll('#donor-dashboard .sub-nav-btn')).find(btn => btn.getAttribute('onclick')?.includes(tabId));
+    if (activeBtn) activeBtn.classList.add('active');
+
+    if (tabId === 'donor-profile') {
+        loadDonorProfile();
+    } else if (tabId === 'donor-donate') {
+        updateDonorEligibility();
+    } else if (tabId === 'donor-requests') {
+        renderDonorRequests();
+    } else if (tabId === 'donor-history') {
+        renderDonorHistory();
+    }
 }
 
 function showEmployeeTab(tabId) {
@@ -325,6 +346,155 @@ function showEmployeeTab(tabId) {
 function loadPatientDashboard() {
     if (!currentUser) return;
     loadPatientProfile();
+}
+
+// ============================================
+// DONOR DASHBOARD
+// ============================================
+
+function ensureDonorRecord() {
+    if (!currentUser || currentRole !== 'donor') return;
+
+    const donorIndex = userData.donors.findIndex(d => d.id === currentUser.id || d.phone === currentUser.phone);
+    if (donorIndex >= 0) {
+        if (!userData.donors[donorIndex].donations) {
+            userData.donors[donorIndex].donations = currentUser.donations || [];
+        }
+        currentUser = userData.donors[donorIndex];
+    }
+
+    if (!currentUser.donations) {
+        currentUser.donations = [];
+    }
+}
+
+function loadDonorDashboard() {
+    if (!currentUser) return;
+    ensureDonorRecord();
+    loadDonorProfile();
+    renderDonorHistory();
+    renderDonorRequests();
+    updateDonorEligibility();
+}
+
+function loadDonorProfile() {
+    ensureDonorRecord();
+    if (!currentUser || currentRole !== 'donor') return;
+
+    const donations = currentUser.donations || [];
+    const totalUnits = donations.reduce((sum, d) => sum + (Number(d.units) || 0), 0);
+    const lastIndex = latestDonationIndex(donations);
+    const lastDonation = lastIndex >= 0 ? donations[lastIndex] : null;
+    const nextBooking = donations.find(d => new Date(d.date) >= new Date());
+
+    document.getElementById('donor-avatar').textContent = currentUser.name?.charAt(0) || 'D';
+    document.getElementById('donor-name-display').textContent = currentUser.name || 'Donor';
+    document.getElementById('donor-id-display').textContent = 'ID: ' + (currentUser.id || 'D' + Date.now());
+    document.getElementById('donor-blood-tag').textContent = 'Blood Group: ' + (currentUser.bloodGroup || '-');
+    document.getElementById('donor-total-donations').textContent = donations.length;
+    document.getElementById('donor-total-units').textContent = totalUnits;
+    document.getElementById('donor-next-booking').textContent = nextBooking ? formatDateTime(nextBooking.date) : 'None';
+
+    if (lastDonation) {
+        document.getElementById('donor-last-donation').textContent = 'Last donation: ' + formatDateTime(lastDonation.date);
+    } else {
+        document.getElementById('donor-last-donation').textContent = 'Last donation: N/A';
+    }
+}
+
+function renderDonorHistory() {
+    ensureDonorRecord();
+    const container = document.getElementById('donor-donations-list');
+    if (!container) return;
+
+    const donations = currentUser?.donations || [];
+    container.innerHTML = '';
+
+    if (!donations.length) {
+        container.innerHTML = '<p style="color:#64748b;">No donations recorded yet. Schedule your first donation to begin tracking.</p>';
+        return;
+    }
+
+    donations
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .forEach(donation => {
+            const card = document.createElement('div');
+            card.className = 'data-card';
+            card.innerHTML = `
+                <h4 style="margin:0 0 6px 0;">${donation.date ? formatDateTime(donation.date) : 'Scheduled'}</h4>
+                <p style="margin:0; color:#475569;">${donation.units || 1} unit(s) • ${currentUser.bloodGroup || 'Group'}</p>
+                <p style="margin:4px 0 0 0; color:#475569;">${donation.location || 'IbneSina Blood Center'}</p>
+            `;
+            container.appendChild(card);
+        });
+}
+
+function renderDonorRequests() {
+    const container = document.getElementById('donor-requests-list');
+    if (!container) return;
+
+    const requests = hospitalData.bloodBank.requests || [];
+    container.innerHTML = '';
+
+    if (!requests.length) {
+        container.innerHTML = '<p style="color:#64748b;">No emergency requests at the moment.</p>';
+        return;
+    }
+
+    requests.forEach((req, index) => {
+        if (!req.id) req.id = 'REQ' + (index + 1);
+        const card = document.createElement('div');
+        card.className = 'request-card';
+        card.innerHTML = `
+            <h4 style="margin:0 0 6px 0;">${req.bloodGroup || 'Blood'} needed</h4>
+            <p style="margin:0; color:#475569;">Units: ${req.units || 1} | Contact: ${req.contact || 'N/A'}</p>
+            <div class="request-meta">
+                <span>Location: ${req.location || 'Hospital blood bank'}</span>
+                <span>Urgency: ${req.priority || 'urgent'}</span>
+            </div>
+            <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn btn-secondary btn-small" onclick="respondToBloodRequest('${req.id}')">I'll donate</button>
+                ${req.volunteer ? `<span style="color:#16a34a; font-weight:600;">Volunteer: ${req.volunteer.name}</span>` : ''}
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function respondToBloodRequest(requestId) {
+    if (!currentUser || currentRole !== 'donor') {
+        showToast('Please login as donor first');
+        return;
+    }
+
+    const request = hospitalData.bloodBank.requests.find(r => r.id === requestId);
+    if (!request) return;
+
+    request.volunteer = {
+        name: currentUser.name,
+        phone: currentUser.phone
+    };
+    saveData();
+    renderDonorRequests();
+    showToast('Thanks for responding!');
+}
+
+function updateDonorEligibility() {
+    ensureDonorRecord();
+    const pill = document.getElementById('donor-next-eligible');
+    if (!pill) return;
+
+    const donations = currentUser?.donations || [];
+    if (!donations.length) {
+        pill.textContent = 'Next eligible: Today';
+        return;
+    }
+
+    const lastDonation = donations[latestDonationIndex(donations)];
+    const lastDate = new Date(lastDonation.date);
+    const nextDate = new Date(lastDate);
+    nextDate.setDate(nextDate.getDate() + 90);
+    pill.textContent = 'Next eligible: ' + nextDate.toLocaleDateString('en-GB');
 }
 
 function loadPatientProfile() {
@@ -399,10 +569,6 @@ function cancelProfileEdit() {
     document.getElementById('profile-view-mode').style.display = 'grid';
     document.getElementById('profile-edit-mode').style.display = 'none';
     document.getElementById('edit-profile-btn').textContent = '✏️ Edit Profile';
-}
-
-function loadDonorDashboard() {
-    if (!currentUser) return;
 }
 
 function loadEmployeeDashboard() {
@@ -652,6 +818,15 @@ function closeModal(id) {
 function formatDateTime(iso) {
     if (!iso) return '-';
     return new Date(iso).toLocaleString('en-GB');
+}
+
+function latestDonationIndex(list) {
+    if (!list.length) return -1;
+    return list.reduce((bestIdx, item, idx) => {
+        const bestDate = new Date(list[bestIdx].date || 0);
+        const nextDate = new Date(item.date || 0);
+        return nextDate > bestDate ? idx : bestIdx;
+    }, 0);
 }
 
 function generateToken() {
@@ -927,6 +1102,65 @@ function setupEventListeners() {
         });
     } else {
         console.warn('⚠️ Appointment form NOT found');
+    }
+
+    const donationForm = document.getElementById('donation-form');
+    if (donationForm) {
+        donationForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            if (!currentUser || currentRole !== 'donor') {
+                showToast('Please login as a donor first.');
+                return;
+            }
+
+            const date = document.getElementById('donation-date').value;
+            const units = Number(document.getElementById('donation-units').value) || 1;
+            const location = document.getElementById('donation-location').value.trim();
+            const notes = document.getElementById('donation-notes').value.trim();
+
+            if (!date || units <= 0) {
+                showToast('Please pick a date and units.');
+                return;
+            }
+
+            const donation = {
+                id: 'DON' + Date.now(),
+                donorId: currentUser.id,
+                donorName: currentUser.name,
+                bloodGroup: currentUser.bloodGroup || 'N/A',
+                units,
+                date,
+                location: location || 'IbneSina Blood Center',
+                notes,
+                status: 'Scheduled',
+                createdAt: new Date().toISOString()
+            };
+
+            ensureDonorRecord();
+            currentUser.donations.push(donation);
+            const donorIdx = userData.donors.findIndex(d => d.id === currentUser.id);
+            if (donorIdx >= 0) {
+                userData.donors[donorIdx] = currentUser;
+            }
+
+            hospitalData.bloodBank.donations.push(donation);
+            if (!hospitalData.bloodBank.stock[donation.bloodGroup]) {
+                hospitalData.bloodBank.stock[donation.bloodGroup] = 0;
+            }
+            hospitalData.bloodBank.stock[donation.bloodGroup] += units;
+
+            saveUserData();
+            saveData();
+
+            showToast('Donation booked. Thank you!');
+            renderDonorHistory();
+            loadDonorProfile();
+            renderAdminBloodPanels();
+
+            donationForm.reset();
+            updateDonorEligibility();
+        });
     }
 }
 

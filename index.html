@@ -389,6 +389,102 @@
         </div>
     </section>
 
+    <!-- Donor Dashboard Section -->
+    <section id="donor-dashboard" class="section">
+        <div class="container">
+            <h2>🩸 Donor Dashboard</h2>
+
+            <div class="sub-nav">
+                <button onclick="showDonorTab('donor-profile')" class="sub-nav-btn active">Profile</button>
+                <button onclick="showDonorTab('donor-donate')" class="sub-nav-btn">Donate</button>
+                <button onclick="showDonorTab('donor-requests')" class="sub-nav-btn">Requests</button>
+                <button onclick="showDonorTab('donor-history')" class="sub-nav-btn">History</button>
+            </div>
+
+            <!-- Donor Profile Tab -->
+            <div id="donor-profile" class="dashboard-tab active">
+                <div class="profile-card donor-card">
+                    <div class="profile-header">
+                        <div class="profile-avatar profile-avatar-gradient">
+                            <span id="donor-avatar">D</span>
+                        </div>
+                        <div class="profile-info">
+                            <h3 id="donor-name-display">Donor Name</h3>
+                            <p id="donor-id-display">ID: D000000</p>
+                            <div class="donor-tag" id="donor-blood-tag">Blood Group: -</div>
+                        </div>
+                        <div class="donor-highlight" id="donor-last-donation">Last donation: N/A</div>
+                    </div>
+
+                    <div class="donor-stats-grid">
+                        <div class="donor-stat">
+                            <p class="stat-label">Total Donations</p>
+                            <p class="stat-value" id="donor-total-donations">0</p>
+                        </div>
+                        <div class="donor-stat">
+                            <p class="stat-label">Units Donated</p>
+                            <p class="stat-value" id="donor-total-units">0</p>
+                        </div>
+                        <div class="donor-stat">
+                            <p class="stat-label">Next Booking</p>
+                            <p class="stat-value" id="donor-next-booking">None</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Donate Tab -->
+            <div id="donor-donate" class="dashboard-tab">
+                <div class="donation-card">
+                    <div class="donation-header">
+                        <div>
+                            <h3>Schedule a Donation</h3>
+                            <p>Choose a date and units to confirm your next visit.</p>
+                        </div>
+                        <div class="donor-pill" id="donor-next-eligible">Next eligible: -</div>
+                    </div>
+                    <form id="donation-form" class="donation-form">
+                        <div class="form-group">
+                            <label for="donation-date">Donation Date *</label>
+                            <input type="date" id="donation-date" required>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="donation-units">Units (bags) *</label>
+                                <input type="number" id="donation-units" min="1" max="3" value="1" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="donation-location">Preferred Center</label>
+                                <input type="text" id="donation-location" placeholder="e.g., Main Blood Bank">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="donation-notes">Health Notes</label>
+                            <textarea id="donation-notes" rows="3" placeholder="Recent medicine, travel, or health updates"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Confirm Donation</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Requests Tab -->
+            <div id="donor-requests" class="dashboard-tab">
+                <div class="profile-section">
+                    <h4>🚨 Emergency Requests Near You</h4>
+                    <div id="donor-requests-list" class="profile-list"></div>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div id="donor-history" class="dashboard-tab">
+                <div class="profile-section">
+                    <h4>📜 Donation History</h4>
+                    <div id="donor-donations-list" class="profile-list"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Donor & Employee Dashboards -->
     <section id="diagnostics" class="section">
         <div class="container">

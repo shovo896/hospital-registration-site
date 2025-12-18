@@ -16,7 +16,7 @@
                 <button onclick="checkAuthAndShow('patient-dashboard')" class="nav-btn" id="patient-nav" style="display: none;">Patient</button>
                 <button onclick="checkAuthAndShow('donor-dashboard')" class="nav-btn" id="donor-nav" style="display: none;">Donor</button>
                 <button onclick="checkAuthAndShow('employee-dashboard')" class="nav-btn" id="employee-nav" style="display: none;">Employee</button>
-                <button onclick="checkAuthAndShow('admin-dashboard')" class="nav-btn" id="admin-nav" style="display: none;">Admin</button>
+                <button onclick="checkAuthAndShow('admin')" class="nav-btn" id="admin-nav" style="display: none;">Admin</button>
                 <button onclick="showSection('login')" class="nav-btn" id="login-btn">Login</button>
                 <button onclick="logout()" class="nav-btn" id="logout-btn" style="display: none; background: #ef4444; color: white;">Logout</button>
             </div>
@@ -653,12 +653,12 @@
             
             <!-- Admin Tabs -->
             <div class="admin-tabs">
-                <button class="tab-btn active" onclick="showAdminTab('doctors-mgmt')">Doctors</button>
-                <button class="tab-btn" onclick="showAdminTab('diagnostics-mgmt')">Diagnostics</button>
-                <button class="tab-btn" onclick="showAdminTab('blood-mgmt')">Blood Bank</button>
-                <button class="tab-btn" onclick="showAdminTab('wards-mgmt')">Wards</button>
-                <button class="tab-btn" onclick="showAdminTab('queues')">Live Queues</button>
-                <button class="tab-btn" onclick="showAdminTab('analytics')">Analytics</button>
+                <button class="tab-btn active" data-tab="doctors-mgmt" onclick="showAdminTab('doctors-mgmt')">Doctors</button>
+                <button class="tab-btn" data-tab="diagnostics-mgmt" onclick="showAdminTab('diagnostics-mgmt')">Diagnostics</button>
+                <button class="tab-btn" data-tab="blood-mgmt" onclick="showAdminTab('blood-mgmt')">Blood Bank</button>
+                <button class="tab-btn" data-tab="wards-mgmt" onclick="showAdminTab('wards-mgmt')">Wards</button>
+                <button class="tab-btn" data-tab="queues" onclick="showAdminTab('queues')">Live Queues</button>
+                <button class="tab-btn" data-tab="analytics" onclick="showAdminTab('analytics')">Analytics</button>
             </div>
 
             <!-- Doctors Management Tab -->

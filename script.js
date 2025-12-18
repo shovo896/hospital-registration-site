@@ -45,6 +45,9 @@ let hospitalData = {
     alerts: []
 };
 
+// Maximum appointments allowed per time slot
+const MAX_APPOINTMENTS_PER_SLOT = 3;
+
 // ============================================
 // DATA MANAGEMENT
 // ============================================
@@ -269,6 +272,8 @@ function showSection(sectionId) {
         loadPatientDashboard();
     } else if (sectionId === 'donor-dashboard') {
         loadDonorDashboard();
+    } else if (sectionId === 'admin') {
+        loadAdminDashboard();
     }
 }
 
@@ -407,30 +412,179 @@ function loadEmployeeDashboard() {
 function loadAdminDashboard() {
     if (!currentUser || currentRole !== 'admin') return;
     console.log('📊 Loading admin dashboard...');
-    
-    // Load doctors list in admin
-    setTimeout(() => {
-        const container = document.getElementById('doctors-list-admin');
-        if (container) {
-            container.innerHTML = '';
-            hospitalData.doctors.forEach(doctor => {
-                const card = document.createElement('div');
-                card.style.cssText = 'border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px;';
-                card.innerHTML = `
-                    <h3>${doctor.name}</h3>
-                    <p><strong>Specialization:</strong> ${doctor.specialization}</p>
-                    <p><strong>Phone:</strong> ${doctor.phone}</p>
-                    <p><strong>Fee:</strong> ৳${doctor.fee}</p>
-                `;
-                container.appendChild(card);
-            });
-            console.log('✅ Admin doctors loaded:', hospitalData.doctors.length);
-        }
-    }, 100);
+    renderAdminDoctors();
+    renderDiagnosticQueues();
+    renderWardRequests();
+    renderAdminBloodPanels();
+
+    const defaultTab = document.querySelector('#admin .tab-btn.active')?.dataset.tab || 'doctors-mgmt';
+    showAdminTab(defaultTab);
 }
 
 function showAdminTab(tabId) {
-    console.log('Admin tab:', tabId);
+    if (!currentUser || currentRole !== 'admin') return;
+
+    document.querySelectorAll('#admin .admin-tab').forEach(tab => {
+        const isActive = tab.id === tabId;
+        tab.classList.toggle('active', isActive);
+        tab.style.display = isActive ? 'block' : 'none';
+    });
+
+    document.querySelectorAll('#admin .tab-btn').forEach(btn => {
+        const isActive = btn.dataset.tab === tabId;
+        btn.classList.toggle('active', isActive);
+    });
+
+    if (tabId === 'doctors-mgmt') {
+        renderAdminDoctors();
+    } else if (tabId === 'blood-mgmt') {
+        renderAdminBloodPanels();
+    } else if (tabId === 'diagnostics-mgmt') {
+        renderDiagnosticQueues();
+    } else if (tabId === 'wards-mgmt') {
+        renderWardRequests();
+    }
+}
+
+function renderAdminDoctors() {
+    const container = document.getElementById('doctors-list-admin');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!hospitalData.doctors.length) {
+        container.innerHTML = '<p style="color:#64748b;">No doctors added yet.</p>';
+        return;
+    }
+
+    hospitalData.doctors.forEach(doctor => {
+        const card = document.createElement('div');
+        card.className = 'data-card';
+        card.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                <div>
+                    <h3 style="margin:0 0 6px 0;">${doctor.name}</h3>
+                    <p style="margin:0; color:#0f172a; font-weight:600;">${doctor.specialization}</p>
+                    <p style="margin:4px 0 0 0; color:#475569;">Fee: ৳${doctor.fee}</p>
+                </div>
+                <div style="text-align:right; color:#475569;">
+                    <p style="margin:0;">📞 ${doctor.phone}</p>
+                    <p style="margin:4px 0 0 0;">ID: ${doctor.id}</p>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function renderDiagnosticQueues() {
+    const container = document.getElementById('diagnostic-queues');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!hospitalData.diagnosticBookings.length) {
+        container.innerHTML = '<p style="color:#64748b;">No diagnostic bookings yet.</p>';
+        return;
+    }
+
+    hospitalData.diagnosticBookings.forEach(booking => {
+        const card = document.createElement('div');
+        card.className = 'data-card';
+        card.innerHTML = `
+            <h4 style="margin:0 0 6px 0;">${booking.type}</h4>
+            <p style="margin:0; color:#475569;">Patient: ${booking.patientName} (${booking.patientPhone})</p>
+            <p style="margin:4px 0 0 0; color:#475569;">Status: ${booking.status || 'pending'}</p>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function renderWardRequests() {
+    const container = document.getElementById('ward-requests-admin');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!hospitalData.wardAdmissions.length) {
+        container.innerHTML = '<p style="color:#64748b;">No ward admissions requested.</p>';
+        return;
+    }
+
+    hospitalData.wardAdmissions.forEach(request => {
+        const card = document.createElement('div');
+        card.className = 'data-card';
+        card.innerHTML = `
+            <h4 style="margin:0 0 6px 0;">${request.ward}</h4>
+            <p style="margin:0; color:#475569;">Patient: ${request.patientName}</p>
+            <p style="margin:4px 0 0 0; color:#475569;">Status: ${request.status || 'pending'}</p>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function renderAdminBloodPanels() {
+    const stockContainer = document.getElementById('admin-blood-stock');
+    const donationsContainer = document.getElementById('admin-all-donations');
+    const requestsContainer = document.getElementById('admin-blood-requests');
+
+    if (stockContainer) {
+        stockContainer.innerHTML = '';
+        Object.entries(hospitalData.bloodBank.stock).forEach(([group, units]) => {
+            const card = document.createElement('div');
+            card.className = 'blood-card';
+            card.innerHTML = `<h4>${group}</h4><p>${units} units</p>`;
+            stockContainer.appendChild(card);
+        });
+    }
+
+    if (donationsContainer) {
+        donationsContainer.innerHTML = '';
+        if (!hospitalData.bloodBank.donations.length) {
+            donationsContainer.innerHTML = '<p style="color:#64748b;">No donations recorded.</p>';
+        } else {
+            hospitalData.bloodBank.donations.forEach(donation => {
+                const card = document.createElement('div');
+                card.className = 'data-card';
+                card.innerHTML = `
+                    <h4 style="margin:0 0 6px 0;">${donation.donorName}</h4>
+                    <p style="margin:0; color:#475569;">Group: ${donation.bloodGroup} | Units: ${donation.units}</p>
+                `;
+                donationsContainer.appendChild(card);
+            });
+        }
+    }
+
+    if (requestsContainer) {
+        requestsContainer.innerHTML = '';
+        if (!hospitalData.bloodBank.requests.length) {
+            requestsContainer.innerHTML = '<p style="color:#64748b;">No emergency requests yet.</p>';
+        } else {
+            hospitalData.bloodBank.requests.forEach(req => {
+                const card = document.createElement('div');
+                card.className = 'data-card';
+                card.innerHTML = `
+                    <h4 style="margin:0 0 6px 0;">${req.bloodGroup} needed</h4>
+                    <p style="margin:0; color:#475569;">Units: ${req.units} | Contact: ${req.contact}</p>
+                `;
+                requestsContainer.appendChild(card);
+            });
+        }
+    }
+}
+
+function showAddDoctorForm() {
+    const form = document.getElementById('add-doctor-form');
+    if (form) {
+        form.style.display = 'block';
+    }
+}
+
+function cancelAddDoctor() {
+    const form = document.getElementById('add-doctor-form');
+    const doctorForm = document.getElementById('doctor-form');
+    if (doctorForm) doctorForm.reset();
+    if (form) form.style.display = 'none';
 }
 
 // ============================================
@@ -467,70 +621,6 @@ if (slotsInfo) {
 
     
     document.getElementById('appointment-modal').classList.add('active');
-}
-
-function loadAppointmentSlots(selectedDate) {
-    console.log('Loading slots for date:', selectedDate);
-    const slotSelect = document.getElementById('appointment-slot');
-    const slotsInfo = document.getElementById('slots-info');
-    
-    if (!slotSelect) {
-        console.error('Slot select not found!');
-        return;
-    }
-    
-    // Available time slots
-    const timeSlots = [
-        '09:00 AM - 09:30 AM',
-        '09:30 AM - 10:00 AM',
-        '10:00 AM - 10:30 AM',
-        '10:30 AM - 11:00 AM',
-        '11:00 AM - 11:30 AM',
-        '11:30 AM - 12:00 PM',
-        '02:00 PM - 02:30 PM',
-        '02:30 PM - 03:00 PM',
-        '03:00 PM - 03:30 PM',
-        '03:30 PM - 04:00 PM',
-        '04:00 PM - 04:30 PM',
-        '04:30 PM - 05:00 PM'
-    ];
-    
-    // Check existing bookings
-    const existingBookings = hospitalData.appointments.filter(apt => 
-        apt.doctorId === selectedDoctor.id && 
-        apt.date === selectedDate
-    );
-    
-    console.log('Existing bookings:', existingBookings.length);
-    
-    // Clear and populate slots
-    slotSelect.innerHTML = '<option value="">Select Time Slot</option>';
-    
-    let availableCount = 0;
-    timeSlots.forEach(slot => {
-        const bookingsInSlot = existingBookings.filter(apt => apt.slot === slot).length;
-        const available = MAX_APPOINTMENTS_PER_SLOT - bookingsInSlot;
-        
-        if (available > 0) {
-            const option = document.createElement('option');
-            option.value = slot;
-            option.textContent = `${slot} (${available} slots available)`;
-            slotSelect.appendChild(option);
-            availableCount++;
-        }
-    });
-    
-    if (availableCount > 0) {
-        slotsInfo.innerHTML = `✅ ${availableCount} time slots available`;
-        slotsInfo.style.background = '#d1fae5';
-        slotsInfo.style.color = '#065f46';
-        console.log('✅ Loaded', availableCount, 'slots');
-    } else {
-        slotsInfo.innerHTML = '❌ No slots available for this date';
-        slotsInfo.style.background = '#fee2e2';
-        slotsInfo.style.color = '#991b1b';
-        console.log('❌ No slots available');
-    }
 }
 
 function bookDiagnostic(type) {
@@ -721,6 +811,41 @@ function setupEventListeners() {
         console.warn('⚠️ Register form NOT found!');
     }
 
+    // Admin - Add doctor
+    const doctorForm = document.getElementById('doctor-form');
+    if (doctorForm) {
+        doctorForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('doctor-name').value.trim();
+            const specialization = document.getElementById('doctor-specialization').value.trim();
+            const phone = document.getElementById('doctor-phone').value.trim();
+            const photo = document.getElementById('doctor-photo').value.trim();
+            const fee = Number(document.getElementById('doctor-fee').value) || 0;
+
+            if (!name || !specialization || !phone) {
+                showToast('Please fill all required doctor fields.');
+                return;
+            }
+
+            const newDoctor = {
+                id: 'D' + String(hospitalData.doctors.length + 1).padStart(3, '0'),
+                name,
+                specialization,
+                phone,
+                photo,
+                fee
+            };
+
+            hospitalData.doctors.push(newDoctor);
+            saveData();
+            renderAdminDoctors();
+            loadPatientDoctors();
+            showToast('Doctor added to roster');
+            cancelAddDoctor();
+        });
+    }
+
     // Profile edit
     const profileForm = document.getElementById('profile-edit-form');
     if (profileForm) {
@@ -749,15 +874,27 @@ function setupEventListeners() {
         appointmentForm.addEventListener('submit', function(e) {
             e.preventDefault();
             console.log('📋 Booking appointment...');
-            
+
             const date = document.getElementById('appointment-date').value;
             const slot = document.getElementById('appointment-slot').value;
-            
+
             if (!date || !slot) {
                 showToast('Please select date and time slot!');
                 return;
             }
-            
+
+            const bookingsForSlot = hospitalData.appointments.filter(apt =>
+                apt.doctorId === selectedDoctor.id &&
+                apt.date === date &&
+                apt.slot === slot
+            ).length;
+
+            if (bookingsForSlot >= MAX_APPOINTMENTS_PER_SLOT) {
+                showToast('Selected slot is full. Please choose another time.');
+                loadAvailableTimeSlots();
+                return;
+            }
+
             const appointment = {
                 id: 'APT' + Date.now(),
                 patientId: currentUser.id,
@@ -775,10 +912,11 @@ function setupEventListeners() {
             
             hospitalData.appointments.push(appointment);
             saveData();
-            
+
             console.log('✅ Appointment booked:', appointment.tokenNumber);
-            
+
             showToast(`Appointment booked! Token: ${appointment.tokenNumber}`);
+            loadAvailableTimeSlots();
             closeModal('appointment-modal');
             this.reset();
             
@@ -865,64 +1003,60 @@ window.addEventListener('click', (e) => {
 });
 
 console.log('✅ Script loaded!');
-// clean code er practice er jonno in future 864 line theke delete kore dibo
-function loadAvailableTimeSlots() {
-    const date = document.getElementById('appointmentDate').value;
-    const slotSelect = document.getElementById('timeSlot');
-
-    console.log('📅 Selected date:', date);
-
-    slotSelect.innerHTML = '<option value="">Select Time Slot</option>';
-
-    if (!date) return;
-
-    // Dummy slots (later doctor wise banানো যাবে)
-    const slots = [
-        '09:00 AM - 09:30 AM',
-        '09:30 AM - 10:00 AM',
-        '10:00 AM - 10:30 AM',
-        '11:00 AM - 11:30 AM',
-        '03:00 PM - 03:30 PM'
-    ];
-
-    slots.forEach(slot => {
-        const option = document.createElement('option');
-        option.value = slot;
-        option.textContent = slot;
-        slotSelect.appendChild(option);
-    });
-}
-// ei porjonto delete korbo 
-
-// newly called 
 function loadAvailableTimeSlots() {
     const date = document.getElementById('appointment-date').value;
     const slotSelect = document.getElementById('appointment-slot');
     const info = document.getElementById('slots-info');
 
-    console.log('📅 Selected date:', date);
-
     slotSelect.innerHTML = '<option value="">Select Time Slot</option>';
 
-    if (!date) {
+    if (!date || !selectedDoctor) {
         info.textContent = 'Select a date to see available slots';
+        info.style.background = '#f0f9ff';
+        info.style.color = '#0c4a6e';
         return;
     }
 
-    const slots = [
+    const timeSlots = [
         '09:00 AM - 09:30 AM',
         '09:30 AM - 10:00 AM',
         '10:00 AM - 10:30 AM',
+        '10:30 AM - 11:00 AM',
         '11:00 AM - 11:30 AM',
-        '03:00 PM - 03:30 PM'
+        '11:30 AM - 12:00 PM',
+        '02:00 PM - 02:30 PM',
+        '02:30 PM - 03:00 PM',
+        '03:00 PM - 03:30 PM',
+        '03:30 PM - 04:00 PM',
+        '04:00 PM - 04:30 PM',
+        '04:30 PM - 05:00 PM'
     ];
 
-    slots.forEach(slot => {
-        const opt = document.createElement('option');
-        opt.value = slot;
-        opt.textContent = slot;
-        slotSelect.appendChild(opt);
+    const existingBookings = hospitalData.appointments.filter(apt =>
+        apt.doctorId === selectedDoctor.id && apt.date === date
+    );
+
+    let availableCount = 0;
+    timeSlots.forEach(slot => {
+        const bookingsInSlot = existingBookings.filter(apt => apt.slot === slot).length;
+        const available = MAX_APPOINTMENTS_PER_SLOT - bookingsInSlot;
+
+        if (available > 0) {
+            const option = document.createElement('option');
+            option.value = slot;
+            option.textContent = `${slot} (${available} slots available)`;
+            slotSelect.appendChild(option);
+            availableCount++;
+        }
     });
 
-    info.textContent = `Available slots for ${date}`;
+    if (availableCount > 0) {
+        info.textContent = `✅ ${availableCount} time slots available for ${date}`;
+        info.style.background = '#d1fae5';
+        info.style.color = '#065f46';
+    } else {
+        info.textContent = '❌ No slots available for this date';
+        info.style.background = '#fee2e2';
+        info.style.color = '#991b1b';
+    }
 }

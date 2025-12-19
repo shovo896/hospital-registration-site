@@ -661,43 +661,14 @@ function loadPatientAppointments() {
             <div>
                 <h4>Dr. ${apt.doctorName}</h4>
                 <p>${apt.date} - ${apt.slot}</p>
-                <p class="muted">Token: ${apt.tokenNumber} • Fee: ৳${apt.fee}</p>
+                <p class="muted">Token: ${apt.tokenNumber}  Fee: ৳${apt.fee}</p>
             </div>
             <div class="chip-row">
                 <span class="status-pill ${apt.paymentStatus === 'paid' ? 'paid' : 'due'}">${apt.paymentStatus === 'paid' ? 'Paid' : 'Payment Due'}</span>
             </div>
         `;
-        if (apt.paymentStatus !== 'paid') {
-            const payBtn = document.createElement('button');
-            payBtn.className = 'btn btn-primary btn-compact';
-            payBtn.textContent = `Pay ৳${apt.fee}`;
-            payBtn.onclick = () => openPaymentFor('appointment', apt.id, apt.fee, `Consultation with Dr. ${apt.doctorName}`);
-            div.appendChild(payBtn);
-        }
+        // No pay button in My Appointments; payment is handled at booking time.
         aptList.appendChild(div);
-    });
-    myDiagnostics.forEach(booking => {
-        const div = document.createElement('div');
-        div.className = 'profile-item';
-        const price = booking.price || diagnosticPrices[booking.type] || 1000;
-        div.innerHTML = `
-            <div>
-                <h4>${booking.type}</h4>
-                <p>${booking.date} - ${booking.slot}</p>
-                <p class="muted">Ref: ${booking.id} • Fee: ৳${price}</p>
-            </div>
-            <div class="chip-row">
-                <span class="status-pill ${booking.paymentStatus === 'paid' ? 'paid' : 'due'}">${booking.paymentStatus === 'paid' ? 'Paid' : 'Payment Due'}</span>
-            </div>
-        `;
-        if (booking.paymentStatus !== 'paid') {
-            const payBtn = document.createElement('button');
-            payBtn.className = 'btn btn-primary btn-compact';
-            payBtn.textContent = `Pay ৳${price}`;
-            payBtn.onclick = () => openPaymentFor('diagnostic', booking.id, price, `${booking.type} booking`);
-            div.appendChild(payBtn);
-        }
-        diagList.appendChild(div);
     });
     myAdmissions.forEach(request => {
         const div = document.createElement('div');
@@ -1410,6 +1381,93 @@ console.log('New user data:', newUser);
                 showToast('Please select date and time slot!');
                 return;
             }
+
+    const diagnosticForm = document.getElementById('diagnostic-form');
+    if (diagnosticForm) {
+        diagnosticForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!currentUser) {
+                showToast('Please login first.');
+                return;
+            }
+            if (!selectedDiagnostic) {
+                showToast('Please choose a diagnostic test.');
+                return;
+            }
+            const date = document.getElementById('diagnostic-date').value;
+            const slot = document.getElementById('diagnostic-slot').value;
+            if (!date || !slot) {
+                showToast('Select date and slot.');
+                return;
+            }
+            const price = diagnosticPrices[selectedDiagnostic] || 1000;
+            const booking = {
+                id: 'DIA' + Date.now(),
+                patientId: currentUser.id,
+                patientName: currentUser.name,
+                patientPhone: currentUser.phone,
+                type: selectedDiagnostic,
+                date,
+                slot,
+                price,
+                paymentStatus: 'due',
+                status: 'scheduled',
+                createdAt: new Date().toISOString()
+            };
+            hospitalData.diagnosticBookings.push(booking);
+            saveData();
+            showToast('Diagnostic booked.');
+            closeModal('diagnostic-modal');
+            diagnosticForm.reset();
+            loadPatientAppointments();
+            openPaymentFor('diagnostic', booking.id, price, `${booking.type} booking`);
+        });
+    }
+
+    const wardForm = document.getElementById('ward-form');
+    if (wardForm) {
+        wardForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!currentUser) {
+                showToast('Please login first.');
+                return;
+            }
+            if (!selectedWard) {
+                showToast('Please select a ward.');
+                return;
+            }
+            const reason = document.getElementById('admission-reason').value.trim();
+            const emergency = document.getElementById('emergency-status').value;
+            const duration = Number(document.getElementById('expected-duration').value) || 1;
+            if (!reason) {
+                showToast('Please enter a reason.');
+                return;
+            }
+            const price = wardPricing[selectedWard] || 500;
+            const request = {
+                id: 'WARD' + Date.now(),
+                patientId: currentUser.id,
+                patientName: currentUser.name,
+                patientPhone: currentUser.phone,
+                ward: selectedWard,
+                reason,
+                emergency,
+                duration,
+                price,
+                status: 'pending',
+                paymentStatus: 'due',
+                createdAt: new Date().toISOString()
+            };
+            hospitalData.wardAdmissions.push(request);
+            saveData();
+            showToast('Ward request submitted.');
+            closeModal('ward-modal');
+            wardForm.reset();
+            loadPatientAppointments();
+            openPaymentFor('ward', request.id, price, `${request.ward} admission`);
+        });
+    }
+
             const bookingsForSlot = hospitalData.appointments.filter(apt =>
                 apt.doctorId === selectedDoctor.id &&
                 apt.date === date &&

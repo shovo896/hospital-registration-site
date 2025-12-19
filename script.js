@@ -130,7 +130,6 @@ function initializeSampleData() {
         { id: 'DON1001', donorName: 'Community Donor', bloodGroup: 'B+', units: 1, date: new Date().toISOString(), location: 'IbneSina Blood Center' }
     ];
     saveData();
-}
 // ============================================
 // AUTH FUNCTIONS
 // ============================================

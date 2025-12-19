@@ -670,6 +670,29 @@ function loadPatientAppointments() {
         // No pay button in My Appointments; payment is handled at booking time.
         aptList.appendChild(div);
     });
+    myDiagnostics.forEach(booking => {
+        const div = document.createElement('div');
+        div.className = 'profile-item';
+        const price = booking.price || diagnosticPrices[booking.type] || 1000;
+        div.innerHTML = `
+            <div>
+                <h4>${booking.type}</h4>
+                <p>${booking.date} - ${booking.slot}</p>
+                <p class="muted">Ref: ${booking.id}  Fee: ৳${price}</p>
+            </div>
+            <div class="chip-row">
+                <span class="status-pill ${booking.paymentStatus === 'paid' ? 'paid' : 'due'}">${booking.paymentStatus === 'paid' ? 'Paid' : 'Payment Due'}</span>
+            </div>
+        `;
+        if (booking.paymentStatus !== 'paid') {
+            const payBtn = document.createElement('button');
+            payBtn.className = 'btn btn-primary btn-compact';
+            payBtn.textContent = `Pay ৳${price}`;
+            payBtn.onclick = () => openPaymentFor('diagnostic', booking.id, price, `${booking.type} booking`);
+            div.appendChild(payBtn);
+        }
+        diagList.appendChild(div);
+    });
     myAdmissions.forEach(request => {
         const div = document.createElement('div');
         div.className = 'profile-item';

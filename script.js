@@ -135,6 +135,7 @@ function initializeSampleData() {
 // ============================================
 
 function selectRole(role) {
+    // Toggle to the login view for the chosen role.
     selectedRoleForAuth = role;
     document.getElementById('role-selection').style.display = 'none';
     document.getElementById('login-form-section').style.display = 'block';
@@ -1539,6 +1540,7 @@ window.addEventListener('click', (e) => {
 console.log('✅ Script loaded!');
 
 function loadAvailableTimeSlots() {
+    // Build the dropdown of open slots for the selected doctor and date.
     const date = document.getElementById('appointment-date').value;
     const slotSelect = document.getElementById('appointment-slot');
     const info = document.getElementById('slots-info');

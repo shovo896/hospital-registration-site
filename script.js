@@ -1573,6 +1573,7 @@ window.showAddDoctorForm = showAddDoctorForm;
 window.cancelAddDoctor = cancelAddDoctor;
 window.resetDailyData = resetDailyData;
 window.exportData = exportData;
+window.openAppointmentModal = openAppointmentModal;
 console.log('✅ Script loaded!');
 
 function loadAvailableTimeSlots() {

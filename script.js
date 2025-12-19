@@ -5254,6 +5254,7 @@ function setupEventListeners() {
 
 
 console.log('New user data:', newUser);
+            newUser.password = password;
 
 
 

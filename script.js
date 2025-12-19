@@ -11,6 +11,22 @@ let selectedRoleForAuth = null;
 let selectedDoctor = null;
 let selectedDiagnostic = null;
 let selectedWard = null;
+let paymentContext = null;
+let passwordAreaUnlocked = false;
+
+function setAvatar(el, fallbackEl, photoUrl, name) {
+    if (!el) return;
+    const initial = name ? name.charAt(0).toUpperCase() : '';
+    if (photoUrl) {
+        el.classList.add('has-photo');
+        el.style.backgroundImage = `url(${photoUrl})`;
+        if (fallbackEl) fallbackEl.textContent = '';
+    } else {
+        el.classList.remove('has-photo');
+        el.style.backgroundImage = '';
+        if (fallbackEl) fallbackEl.textContent = initial || '?';
+    }
+}
 
 // User databases
 let userData = {
@@ -45,6 +61,24 @@ let hospitalData = {
     alerts: []
 };
 
+const diagnosticPrices = {
+    'Blood Test': 800,
+    'X-Ray': 1200,
+    'ECG': 900,
+    'MRI': 5500,
+    'Ultrasound': 1800,
+    'CT Scan': 5200
+};
+
+const wardPricing = {
+    'General': 500,
+    'Cabin': 2000,
+    'ICU': 5000
+};
+
+// Maximum appointments allowed per time slot
+const MAX_APPOINTMENTS_PER_SLOT = 3;
+
 // ============================================
 // DATA MANAGEMENT
 // ============================================
@@ -73,16 +107,7 @@ function loadData() {
         } catch (e) {}
     }
     
-    const savedSession = localStorage.getItem('currentSession');
-    if (savedSession) {
-        try {
-            const session = JSON.parse(savedSession);
-            currentUser = session.user;
-            currentRole = session.role;
-        } catch (e) {
-            localStorage.removeItem('currentSession');
-        }
-    }
+    hydrateSessionFromStorage();
 }
 
 function saveUserData() {
@@ -98,8 +123,40 @@ function saveSession() {
     }
 }
 
+function hydrateSessionFromStorage() {
+    const savedSession = localStorage.getItem('currentSession');
+    if (!savedSession) return;
+
+    try {
+        const session = JSON.parse(savedSession);
+        const roleBuckets = {
+            patient: userData.patients,
+            donor: userData.donors,
+            employee: userData.employees,
+            admin: userData.admins
+        };
+
+        const pool = roleBuckets[session.role] || [];
+        const matchedUser = pool.find(u => u.id === session.user?.id || u.phone === session.user?.phone);
+
+        if (matchedUser) {
+            currentUser = matchedUser;
+            currentRole = session.role;
+        } else {
+            clearSession();
+        }
+    } catch (e) {
+        clearSession();
+    }
+}
+
 function clearSession() {
     localStorage.removeItem('currentSession');
+    currentUser = null;
+    currentRole = null;
+    passwordAreaUnlocked = false;
+    resetPasswordSecurityUI();
+    updateNavigationForRole();
 }
 
 function initializeSampleData() {
@@ -109,6 +166,18 @@ function initializeSampleData() {
         { id: 'D003', name: 'Dr. Kamal Hossain', specialization: 'Neurologist', phone: '01911-345678', photo: '', fee: 1000 },
         { id: 'D004', name: 'Dr. Nazia Sultana', specialization: 'Gynecologist', phone: '01611-456789', photo: '', fee: 700 },
         { id: 'D005', name: 'Dr. Rafiq Ahmed', specialization: 'Orthopedic', phone: '01511-567890', photo: '', fee: 900 }
+    ];
+    hospitalData.bloodBank.requests = [
+        { id: 'REQ101', bloodGroup: 'O+', units: 2, contact: '01711-998877', location: 'ICU Block', priority: 'critical' },
+        { id: 'REQ102', bloodGroup: 'A-', units: 1, contact: '01818-445566', location: 'Emergency Desk', priority: 'urgent' }
+    ];
+    hospitalData.bloodBank.donations = [
+        { id: 'DON1001', donorName: 'Community Donor', bloodGroup: 'B+', units: 1, date: new Date().toISOString(), location: 'IbneSina Blood Center' }
+    ];
+    hospitalData.alerts = [
+        { id: 'AL001', title: 'Spring Wellness Fair', message: 'Free basic checkup and floral therapy corner on Friday.', type: 'info', highlight: '🌸', time: new Date().toISOString() },
+        { id: 'AL002', title: 'Blood Drive Bonus', message: 'Rose badge for all O+ donors this week.', type: 'success', highlight: '🌹', time: new Date().toISOString() },
+        { id: 'AL003', title: 'Maintenance', message: 'MRI wing repainting tonight; expect minor delays.', type: 'warning', highlight: '⚠️', time: new Date().toISOString() }
     ];
     saveData();
 }
@@ -133,13 +202,8 @@ function selectRole(role) {
     const passwordField = document.getElementById('password-field');
     const loginPassword = document.getElementById('login-password');
     
-    if (role === 'employee' || role === 'admin') {
-        passwordField.style.display = 'block';
-        loginPassword.required = true;
-    } else {
-        passwordField.style.display = 'none';
-        loginPassword.required = false;
-    }
+    passwordField.style.display = 'block';
+    loginPassword.required = false;
     
     const registerLink = document.getElementById('register-link');
     if (role === 'admin') {
@@ -186,16 +250,37 @@ function backToLogin() {
     document.getElementById('register-form-section').style.display = 'none';
 }
 
+function updateHomeCta() {
+    const homeCta = document.getElementById('home-auth-cta');
+    const heroSubtitle = document.getElementById('hero-subtitle');
+
+    if (!homeCta) return;
+
+    if (currentRole && currentUser) {
+        homeCta.textContent = 'Go to Dashboard';
+        homeCta.onclick = () => showSection(getDashboardForRole(currentRole));
+        if (heroSubtitle) {
+            heroSubtitle.textContent = `Welcome back, ${currentUser.name}! Head to your dashboard to continue.`;
+        }
+    } else {
+        homeCta.textContent = 'Login / Register';
+        homeCta.onclick = () => showSection('login');
+        if (heroSubtitle) {
+            heroSubtitle.textContent = 'Quality Healthcare Services at Your Fingertips';
+        }
+    }
+}
+
 function updateNavigationForRole() {
     document.getElementById('patient-nav').style.display = 'none';
     document.getElementById('donor-nav').style.display = 'none';
     document.getElementById('employee-nav').style.display = 'none';
     document.getElementById('admin-nav').style.display = 'none';
-    
+
     if (currentRole) {
         document.getElementById('login-btn').style.display = 'none';
         document.getElementById('logout-btn').style.display = 'block';
-        
+
         const navButtons = {
             'patient': 'patient-nav',
             'donor': 'donor-nav',
@@ -207,6 +292,40 @@ function updateNavigationForRole() {
         document.getElementById('login-btn').style.display = 'block';
         document.getElementById('logout-btn').style.display = 'none';
     }
+
+    updateHomeCta();
+    refreshAccessDenials();
+}
+
+function getDashboardForRole(role) {
+    const dash = {
+        'patient': 'patient-dashboard',
+        'donor': 'donor-dashboard',
+        'employee': 'employee-dashboard',
+        'admin': 'admin'
+    };
+    return dash[role] || 'home';
+}
+
+function refreshAccessDenials() {
+    const blocks = document.querySelectorAll('.access-denied');
+    blocks.forEach(block => {
+        const message = block.querySelector('p');
+        const button = block.querySelector('button');
+
+        if (!message || !button) return;
+
+        if (currentRole && currentUser) {
+            const roleName = currentRole.charAt(0).toUpperCase() + currentRole.slice(1);
+            message.textContent = `You are logged in as ${roleName} ${currentUser.name || ''}. Go straight to your dashboard.`.trim();
+            button.textContent = 'Go to Dashboard';
+            button.onclick = () => showSection(getDashboardForRole(currentRole));
+        } else {
+            message.textContent = 'Please login to continue.';
+            button.textContent = 'Go to Login';
+            button.onclick = () => showSection('login');
+        }
+    });
 }
 
 function checkAuthAndShow(sectionId) {
@@ -229,9 +348,6 @@ function checkAuthAndShow(sectionId) {
 function logout() {
     if (confirm('Are you sure?')) {
         clearSession();
-        currentUser = null;
-        currentRole = null;
-        updateNavigationForRole();
         showToast('Logged out');
         showSection('home');
     }
@@ -249,6 +365,13 @@ function resetSystem() {
 // ============================================
 
 function showSection(sectionId) {
+    updateHomeCta();
+    refreshAccessDenials();
+    if (sectionId === 'login' && currentRole) {
+        showSection(getDashboardForRole(currentRole));
+        showToast('You are already logged in.');
+        return;
+    }
     console.log('📍 Showing section:', sectionId);
     
     document.querySelectorAll('.section').forEach(section => {
@@ -269,6 +392,8 @@ function showSection(sectionId) {
         loadPatientDashboard();
     } else if (sectionId === 'donor-dashboard') {
         loadDonorDashboard();
+    } else if (sectionId === 'admin') {
+        loadAdminDashboard();
     }
 }
 
@@ -303,6 +428,20 @@ function showDonorTab(tabId) {
     });
     const tab = document.getElementById(tabId);
     if (tab) tab.classList.add('active');
+
+    document.querySelectorAll('#donor-dashboard .sub-nav-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = Array.from(document.querySelectorAll('#donor-dashboard .sub-nav-btn')).find(btn => btn.getAttribute('onclick')?.includes(tabId));
+    if (activeBtn) activeBtn.classList.add('active');
+
+    if (tabId === 'donor-profile') {
+        loadDonorProfile();
+    } else if (tabId === 'donor-donate') {
+        updateDonorEligibility();
+    } else if (tabId === 'donor-requests') {
+        renderDonorRequests();
+    } else if (tabId === 'donor-history') {
+        renderDonorHistory();
+    }
 }
 
 function showEmployeeTab(tabId) {
@@ -322,16 +461,267 @@ function loadPatientDashboard() {
     loadPatientProfile();
 }
 
+function syncPatientRecord() {
+    if (!currentUser || currentRole !== 'patient') return;
+    const idx = hospitalData.patients.findIndex(p => p.id === currentUser.id || p.phone === currentUser.phone);
+    if (idx >= 0) {
+        hospitalData.patients[idx] = { ...hospitalData.patients[idx], ...currentUser };
+    }
+}
+
+// ============================================
+// DONOR DASHBOARD
+// ============================================
+
+function ensureDonorRecord() {
+    if (!currentUser || currentRole !== 'donor') return;
+
+    const donorIndex = userData.donors.findIndex(d => d.id === currentUser.id || d.phone === currentUser.phone);
+    if (donorIndex >= 0) {
+        if (!userData.donors[donorIndex].donations) {
+            userData.donors[donorIndex].donations = currentUser.donations || [];
+        }
+        currentUser = userData.donors[donorIndex];
+    }
+
+    if (!currentUser.donations) {
+        currentUser.donations = [];
+    }
+}
+
+function loadDonorDashboard() {
+    if (!currentUser) return;
+    ensureDonorRecord();
+    loadDonorProfile();
+    renderDonorHistory();
+    renderDonorRequests();
+    updateDonorEligibility();
+}
+
+function loadDonorProfile() {
+    ensureDonorRecord();
+    if (!currentUser || currentRole !== 'donor') return;
+
+    const donations = currentUser.donations || [];
+    const totalUnits = donations.reduce((sum, d) => sum + (Number(d.units) || 0), 0);
+    const lastIndex = latestDonationIndex(donations);
+    const lastDonation = lastIndex >= 0 ? donations[lastIndex] : null;
+    const nextBooking = donations.find(d => new Date(d.date) >= new Date());
+
+    setAvatar(
+        document.getElementById('donor-avatar'),
+        null,
+        currentUser.photo,
+        currentUser.name || 'D'
+    );
+    document.getElementById('donor-name-display').textContent = currentUser.name || 'Donor';
+    document.getElementById('donor-id-display').textContent = 'ID: ' + (currentUser.id || 'D' + Date.now());
+    document.getElementById('donor-blood-tag').textContent = 'Blood Group: ' + (currentUser.bloodGroup || '-');
+    document.getElementById('donor-total-donations').textContent = donations.length;
+    document.getElementById('donor-total-units').textContent = totalUnits;
+    document.getElementById('donor-next-booking').textContent = nextBooking ? formatDateTime(nextBooking.date) : 'None';
+
+    if (lastDonation) {
+        document.getElementById('donor-last-donation').textContent = 'Last donation: ' + formatDateTime(lastDonation.date);
+    } else {
+        document.getElementById('donor-last-donation').textContent = 'Last donation: N/A';
+    }
+}
+
+function renderDonorHistory() {
+    ensureDonorRecord();
+    const container = document.getElementById('donor-donations-list');
+    if (!container) return;
+
+    const donations = currentUser?.donations || [];
+    container.innerHTML = '';
+
+    if (!donations.length) {
+        container.innerHTML = '<p style="color:#64748b;">No donations recorded yet. Schedule your first donation to begin tracking.</p>';
+        return;
+    }
+
+    donations
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .forEach(donation => {
+            const card = document.createElement('div');
+            card.className = 'data-card';
+            card.innerHTML = `
+                <h4 style="margin:0 0 6px 0;">${donation.date ? formatDateTime(donation.date) : 'Scheduled'}</h4>
+                <p style="margin:0; color:#475569;">${donation.units || 1} unit(s) • ${currentUser.bloodGroup || 'Group'}</p>
+                <p style="margin:4px 0 0 0; color:#475569;">${donation.location || 'IbneSina Blood Center'}</p>
+            `;
+            container.appendChild(card);
+        });
+}
+
+function renderDonorRequests() {
+    const container = document.getElementById('donor-requests-list');
+    if (!container) return;
+
+    const requests = hospitalData.bloodBank.requests || [];
+    container.innerHTML = '';
+
+    if (!requests.length) {
+        container.innerHTML = '<p style="color:#64748b;">No emergency requests at the moment.</p>';
+        return;
+    }
+
+    requests.forEach((req, index) => {
+        if (!req.id) req.id = 'REQ' + (index + 1);
+        const card = document.createElement('div');
+        card.className = 'request-card';
+        card.innerHTML = `
+            <h4 style="margin:0 0 6px 0;">${req.bloodGroup || 'Blood'} needed</h4>
+            <p style="margin:0; color:#475569;">Units: ${req.units || 1} | Contact: ${req.contact || 'N/A'}</p>
+            <div class="request-meta">
+                <span>Location: ${req.location || 'Hospital blood bank'}</span>
+                <span>Urgency: ${req.priority || 'urgent'}</span>
+            </div>
+            <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn btn-secondary btn-small" onclick="respondToBloodRequest('${req.id}')">I'll donate</button>
+                ${req.volunteer ? `<span style="color:#16a34a; font-weight:600;">Volunteer: ${req.volunteer.name}</span>` : ''}
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function respondToBloodRequest(requestId) {
+    if (!currentUser || currentRole !== 'donor') {
+        showToast('Please login as donor first');
+        return;
+    }
+
+    const request = hospitalData.bloodBank.requests.find(r => r.id === requestId);
+    if (!request) return;
+
+    request.volunteer = {
+        name: currentUser.name,
+        phone: currentUser.phone
+    };
+    saveData();
+    renderDonorRequests();
+    showToast('Thanks for responding!');
+}
+
+function updateDonorEligibility() {
+    ensureDonorRecord();
+    const pill = document.getElementById('donor-next-eligible');
+    if (!pill) return;
+
+    const donations = currentUser?.donations || [];
+    if (!donations.length) {
+        pill.textContent = 'Next eligible: Today';
+        return;
+    }
+
+    const lastDonation = donations[latestDonationIndex(donations)];
+    const lastDate = new Date(lastDonation.date);
+    const nextDate = new Date(lastDate);
+    nextDate.setDate(nextDate.getDate() + 90);
+    pill.textContent = 'Next eligible: ' + nextDate.toLocaleDateString('en-GB');
+}
+
 function loadPatientProfile() {
     if (!currentUser) return;
-    
-    document.getElementById('patient-avatar').textContent = currentUser.name.charAt(0);
+
+    resetPasswordSecurityUI();
+
+    if (!currentUser.medicalHistory) currentUser.medicalHistory = [];
+
+    setAvatar(
+        document.getElementById('patient-avatar'),
+        document.getElementById('patient-avatar-fallback'),
+        currentUser.photo,
+        currentUser.name
+    );
+
     document.getElementById('patient-name-display').textContent = currentUser.name;
     document.getElementById('patient-id-display').textContent = 'ID: ' + currentUser.id;
     document.getElementById('view-phone').textContent = currentUser.phone;
     document.getElementById('view-age').textContent = currentUser.age + ' years';
     document.getElementById('view-blood').textContent = currentUser.bloodGroup || 'N/A';
     document.getElementById('view-registered').textContent = formatDateTime(currentUser.registrationDate);
+    renderPatientHistory();
+}
+
+function renderPatientHistory() {
+    const list = document.getElementById('patient-history-list');
+    if (!list) return;
+
+    const history = currentUser?.medicalHistory || [];
+    list.innerHTML = '';
+
+    if (!history.length) {
+        list.innerHTML = '<p class="muted">No history added yet. Save a diagnosis to see it here.</p>';
+        return;
+    }
+
+    history
+        .slice()
+        .sort((a, b) => new Date(b.loggedAt || b.date || 0) - new Date(a.loggedAt || a.date || 0))
+        .forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'profile-item';
+            div.innerHTML = `
+                <div>
+                    <h4>${item.condition}</h4>
+                    <p class="muted">${item.date ? formatDateTime(item.date) : 'Date not set'}</p>
+                    <p>${item.notes || ''}</p>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+}
+
+function resetPasswordSecurityUI() {
+    passwordAreaUnlocked = false;
+
+    const gate = document.getElementById('password-gate');
+    const updateForm = document.getElementById('password-update-form');
+    const lockStatus = document.getElementById('password-lock-status');
+    const accessForm = document.getElementById('password-access-form');
+    const hint = document.getElementById('password-gate-hint');
+
+    if (gate) gate.style.display = 'block';
+    if (updateForm) {
+        updateForm.classList.remove('active');
+        updateForm.setAttribute('aria-hidden', 'true');
+        if (typeof updateForm.reset === 'function') updateForm.reset();
+    }
+    if (lockStatus) {
+        lockStatus.textContent = 'Locked';
+        lockStatus.classList.remove('unlocked');
+    }
+    if (accessForm) accessForm.reset();
+    if (hint) {
+        hint.textContent = currentUser?.password
+            ? 'Enter your existing password to view password controls.'
+            : 'Set a password to lock down your profile.';
+    }
+}
+
+function unlockPasswordSecurityUI() {
+    passwordAreaUnlocked = true;
+
+    const gate = document.getElementById('password-gate');
+    const updateForm = document.getElementById('password-update-form');
+    const lockStatus = document.getElementById('password-lock-status');
+    const statusMsg = document.getElementById('password-unlock-msg');
+
+    if (gate) gate.style.display = 'none';
+    if (updateForm) {
+        updateForm.classList.add('active');
+        updateForm.setAttribute('aria-hidden', 'false');
+    }
+    if (lockStatus) {
+        lockStatus.textContent = 'Unlocked';
+        lockStatus.classList.add('unlocked');
+    }
+    if (statusMsg) {
+        statusMsg.textContent = 'Unlocked for this session—save your new password or relock to hide controls.';
+    }
 }
 
 function loadPatientDoctors() {
@@ -358,16 +748,93 @@ function loadPatientDoctors() {
 
 function loadPatientAppointments() {
     const aptList = document.getElementById('patient-appointments-list');
-    if (!aptList) return;
-    
+    const diagList = document.getElementById('patient-diagnostics-list');
+    const wardList = document.getElementById('patient-admissions-list');
+    if (!aptList || !diagList || !wardList) return;
+
     const myApts = hospitalData.appointments.filter(a => a.patientId === currentUser.id);
+    const myDiagnostics = hospitalData.diagnosticBookings.filter(b => b.patientId === currentUser.id);
+    const myAdmissions = hospitalData.wardAdmissions.filter(w => w.patientId === currentUser.id);
+
     aptList.innerHTML = myApts.length ? '' : '<p>No appointments</p>';
-    
+    diagList.innerHTML = myDiagnostics.length ? '' : '<p>No diagnostic bookings</p>';
+    wardList.innerHTML = myAdmissions.length ? '' : '<p>No ward admissions</p>';
+
     myApts.forEach(apt => {
         const div = document.createElement('div');
         div.className = 'profile-item';
-        div.innerHTML = `<h4>Dr. ${apt.doctorName}</h4><p>${apt.date} - ${apt.slot}</p>`;
+        div.innerHTML = `
+            <div>
+                <h4>Dr. ${apt.doctorName}</h4>
+                <p>${apt.date} - ${apt.slot}</p>
+                <p class="muted">Token: ${apt.tokenNumber} • Fee: ৳${apt.fee}</p>
+            </div>
+            <div class="chip-row">
+                <span class="status-pill ${apt.paymentStatus === 'paid' ? 'paid' : 'due'}">${apt.paymentStatus === 'paid' ? 'Paid' : 'Payment Due'}</span>
+            </div>
+        `;
+
+        if (apt.paymentStatus !== 'paid') {
+            const payBtn = document.createElement('button');
+            payBtn.className = 'btn btn-primary btn-compact';
+            payBtn.textContent = `Pay ৳${apt.fee}`;
+            payBtn.onclick = () => openPaymentFor('appointment', apt.id, apt.fee, `Consultation with Dr. ${apt.doctorName}`);
+            div.appendChild(payBtn);
+        }
+
         aptList.appendChild(div);
+    });
+
+    myDiagnostics.forEach(booking => {
+        const div = document.createElement('div');
+        div.className = 'profile-item';
+        const price = booking.price || diagnosticPrices[booking.type] || 1000;
+        div.innerHTML = `
+            <div>
+                <h4>${booking.type}</h4>
+                <p>${booking.date} - ${booking.slot}</p>
+                <p class="muted">Ref: ${booking.id} • Fee: ৳${price}</p>
+            </div>
+            <div class="chip-row">
+                <span class="status-pill ${booking.paymentStatus === 'paid' ? 'paid' : 'due'}">${booking.paymentStatus === 'paid' ? 'Paid' : 'Payment Due'}</span>
+            </div>
+        `;
+
+        if (booking.paymentStatus !== 'paid') {
+            const payBtn = document.createElement('button');
+            payBtn.className = 'btn btn-primary btn-compact';
+            payBtn.textContent = `Pay ৳${price}`;
+            payBtn.onclick = () => openPaymentFor('diagnostic', booking.id, price, `${booking.type} booking`);
+            div.appendChild(payBtn);
+        }
+
+        diagList.appendChild(div);
+    });
+
+    myAdmissions.forEach(request => {
+        const div = document.createElement('div');
+        div.className = 'profile-item';
+        const price = wardPricing[request.ward] || 500;
+        div.innerHTML = `
+            <div>
+                <h4>${request.ward} Ward</h4>
+                <p>${request.reason || 'Admission requested'}</p>
+                <p class="muted">Status: ${request.status || 'pending'} • Fee: ৳${price}/day</p>
+            </div>
+            <div class="chip-row">
+                <span class="status-pill ${request.paymentStatus === 'paid' ? 'paid' : 'due'}">${request.paymentStatus === 'paid' ? 'Paid' : 'Payment Due'}</span>
+            </div>
+        `;
+
+        if (request.paymentStatus !== 'paid') {
+            const payBtn = document.createElement('button');
+            payBtn.className = 'btn btn-primary btn-compact';
+            payBtn.textContent = `Pay ৳${price}`;
+            payBtn.onclick = () => openPaymentFor('ward', request.id, price, `${request.ward} admission`);
+            div.appendChild(payBtn);
+        }
+
+        wardList.appendChild(div);
     });
 }
 
@@ -380,8 +847,9 @@ function toggleProfileEdit() {
         view.style.display = 'none';
         edit.style.display = 'block';
         btn.textContent = '❌ Cancel';
-        
+
         document.getElementById('edit-name').value = currentUser.name;
+        document.getElementById('edit-photo').value = currentUser.photo || '';
         document.getElementById('edit-phone').value = currentUser.phone;
         document.getElementById('edit-age').value = currentUser.age;
         document.getElementById('edit-blood').value = currentUser.bloodGroup || '';
@@ -396,10 +864,6 @@ function cancelProfileEdit() {
     document.getElementById('edit-profile-btn').textContent = '✏️ Edit Profile';
 }
 
-function loadDonorDashboard() {
-    if (!currentUser) return;
-}
-
 function loadEmployeeDashboard() {
     if (!currentUser) return;
 }
@@ -407,30 +871,257 @@ function loadEmployeeDashboard() {
 function loadAdminDashboard() {
     if (!currentUser || currentRole !== 'admin') return;
     console.log('📊 Loading admin dashboard...');
-    
-    // Load doctors list in admin
-    setTimeout(() => {
-        const container = document.getElementById('doctors-list-admin');
-        if (container) {
-            container.innerHTML = '';
-            hospitalData.doctors.forEach(doctor => {
-                const card = document.createElement('div');
-                card.style.cssText = 'border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px;';
-                card.innerHTML = `
-                    <h3>${doctor.name}</h3>
-                    <p><strong>Specialization:</strong> ${doctor.specialization}</p>
-                    <p><strong>Phone:</strong> ${doctor.phone}</p>
-                    <p><strong>Fee:</strong> ৳${doctor.fee}</p>
-                `;
-                container.appendChild(card);
-            });
-            console.log('✅ Admin doctors loaded:', hospitalData.doctors.length);
-        }
-    }, 100);
+    renderAdminDoctors();
+    renderDiagnosticQueues();
+    renderWardRequests();
+    renderAdminBloodPanels();
+    renderAdminNotices();
+
+    const defaultTab = document.querySelector('#admin .tab-btn.active')?.dataset.tab || 'doctors-mgmt';
+    showAdminTab(defaultTab);
 }
 
 function showAdminTab(tabId) {
-    console.log('Admin tab:', tabId);
+    if (!currentUser || currentRole !== 'admin') return;
+
+    document.querySelectorAll('#admin .admin-tab').forEach(tab => {
+        const isActive = tab.id === tabId;
+        tab.classList.toggle('active', isActive);
+        tab.style.display = isActive ? 'block' : 'none';
+    });
+
+    document.querySelectorAll('#admin .tab-btn').forEach(btn => {
+        const isActive = btn.dataset.tab === tabId;
+        btn.classList.toggle('active', isActive);
+    });
+
+    if (tabId === 'doctors-mgmt') {
+        renderAdminDoctors();
+    } else if (tabId === 'blood-mgmt') {
+        renderAdminBloodPanels();
+    } else if (tabId === 'diagnostics-mgmt') {
+        renderDiagnosticQueues();
+    } else if (tabId === 'wards-mgmt') {
+        renderWardRequests();
+    } else if (tabId === 'notice-mgmt') {
+        renderAdminNotices();
+    }
+}
+
+function renderAdminDoctors() {
+    const container = document.getElementById('doctors-list-admin');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!hospitalData.doctors.length) {
+        container.innerHTML = '<p style="color:#64748b;">No doctors added yet.</p>';
+        return;
+    }
+
+    hospitalData.doctors.forEach(doctor => {
+        const card = document.createElement('div');
+        card.className = 'data-card';
+        card.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                <div>
+                    <h3 style="margin:0 0 6px 0;">${doctor.name}</h3>
+                    <p style="margin:0; color:#0f172a; font-weight:600;">${doctor.specialization}</p>
+                    <p style="margin:4px 0 0 0; color:#475569;">Fee: ৳${doctor.fee}</p>
+                </div>
+                <div style="text-align:right; color:#475569;">
+                    <p style="margin:0;">📞 ${doctor.phone}</p>
+                    <p style="margin:4px 0 0 0;">ID: ${doctor.id}</p>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function renderDiagnosticQueues() {
+    const container = document.getElementById('diagnostic-queues');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!hospitalData.diagnosticBookings.length) {
+        container.innerHTML = '<p style="color:#64748b;">No diagnostic bookings yet.</p>';
+        return;
+    }
+
+    hospitalData.diagnosticBookings.forEach(booking => {
+        const card = document.createElement('div');
+        card.className = 'data-card';
+        card.innerHTML = `
+            <h4 style="margin:0 0 6px 0;">${booking.type}</h4>
+            <p style="margin:0; color:#475569;">Patient: ${booking.patientName} (${booking.patientPhone})</p>
+            <p style="margin:4px 0 0 0; color:#475569;">Status: ${booking.status || 'pending'}</p>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function renderWardRequests() {
+    const container = document.getElementById('ward-requests-admin');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!hospitalData.wardAdmissions.length) {
+        container.innerHTML = '<p style="color:#64748b;">No ward admissions requested.</p>';
+        return;
+    }
+
+    hospitalData.wardAdmissions.forEach(request => {
+        const card = document.createElement('div');
+        card.className = 'data-card';
+        card.innerHTML = `
+            <h4 style="margin:0 0 6px 0;">${request.ward}</h4>
+            <p style="margin:0; color:#475569;">Patient: ${request.patientName}</p>
+            <p style="margin:4px 0 0 0; color:#475569;">Status: ${request.status || 'pending'}</p>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function renderNoticeBoard() {
+    const board = document.getElementById('notice-board');
+    if (!board) return;
+
+    if (!hospitalData.alerts.length) {
+        board.innerHTML = '<p class="muted">No notices right now.</p>';
+        return;
+    }
+
+    const sorted = [...hospitalData.alerts].sort((a, b) => new Date(b.time) - new Date(a.time));
+    board.innerHTML = '';
+
+    sorted.slice(0, 4).forEach(alert => {
+        const card = document.createElement('div');
+        card.className = `notice-card notice-${alert.type || 'info'}`;
+        const badge = alert.highlight || '🌸';
+        card.innerHTML = `
+            <div class="notice-header">
+                <span class="notice-icon">${badge}</span>
+                <div>
+                    <p class="notice-title">${alert.title}</p>
+                    <p class="notice-time">${formatDateTime(alert.time)}</p>
+                </div>
+            </div>
+            <p class="notice-message">${alert.message}</p>
+            ${alert.image ? `<img class="notice-photo" src="${alert.image}" alt="notice image">` : ''}
+        `;
+        board.appendChild(card);
+    });
+}
+
+function renderAdminNotices() {
+    const adminList = document.getElementById('notice-list-admin');
+    if (!adminList) return;
+
+    adminList.innerHTML = '';
+
+    if (!hospitalData.alerts.length) {
+        adminList.innerHTML = '<p class="muted">No notices yet. Post something bright!</p>';
+        return;
+    }
+
+    const sorted = [...hospitalData.alerts].sort((a, b) => new Date(b.time) - new Date(a.time));
+
+    sorted.forEach(alert => {
+        const card = document.createElement('div');
+        card.className = 'data-card notice-admin-card';
+        card.innerHTML = `
+            <div class="notice-admin-row">
+                <div>
+                    <p class="notice-title" style="margin:0;">${alert.title}</p>
+                    <p class="notice-message" style="margin:4px 0 0 0;">${alert.message}</p>
+                    ${alert.image ? `<img class="notice-photo" src="${alert.image}" alt="notice image">` : ''}
+                    <p class="notice-time" style="margin-top:6px;">${formatDateTime(alert.time)}</p>
+                </div>
+                <div class="notice-admin-meta">
+                    <span class="badge badge-${alert.type || 'info'}">${(alert.type || 'info').toUpperCase()}</span>
+                    <span class="notice-icon" aria-label="accent">${alert.highlight || '🌸'}</span>
+                    <button class="btn btn-secondary" data-id="${alert.id}">Remove</button>
+                </div>
+            </div>
+        `;
+
+        card.querySelector('button').addEventListener('click', () => {
+            hospitalData.alerts = hospitalData.alerts.filter(item => item.id !== alert.id);
+            saveData();
+            renderNoticeBoard();
+            renderAdminNotices();
+            showToast('Notice removed');
+        });
+
+        adminList.appendChild(card);
+    });
+}
+
+function renderAdminBloodPanels() {
+    const stockContainer = document.getElementById('admin-blood-stock');
+    const donationsContainer = document.getElementById('admin-all-donations');
+    const requestsContainer = document.getElementById('admin-blood-requests');
+
+    if (stockContainer) {
+        stockContainer.innerHTML = '';
+        Object.entries(hospitalData.bloodBank.stock).forEach(([group, units]) => {
+            const card = document.createElement('div');
+            card.className = 'blood-card';
+            card.innerHTML = `<h4>${group}</h4><p>${units} units</p>`;
+            stockContainer.appendChild(card);
+        });
+    }
+
+    if (donationsContainer) {
+        donationsContainer.innerHTML = '';
+        if (!hospitalData.bloodBank.donations.length) {
+            donationsContainer.innerHTML = '<p style="color:#64748b;">No donations recorded.</p>';
+        } else {
+            hospitalData.bloodBank.donations.forEach(donation => {
+                const card = document.createElement('div');
+                card.className = 'data-card';
+                card.innerHTML = `
+                    <h4 style="margin:0 0 6px 0;">${donation.donorName}</h4>
+                    <p style="margin:0; color:#475569;">Group: ${donation.bloodGroup} | Units: ${donation.units}</p>
+                `;
+                donationsContainer.appendChild(card);
+            });
+        }
+    }
+
+    if (requestsContainer) {
+        requestsContainer.innerHTML = '';
+        if (!hospitalData.bloodBank.requests.length) {
+            requestsContainer.innerHTML = '<p style="color:#64748b;">No emergency requests yet.</p>';
+        } else {
+            hospitalData.bloodBank.requests.forEach(req => {
+                const card = document.createElement('div');
+                card.className = 'data-card';
+                card.innerHTML = `
+                    <h4 style="margin:0 0 6px 0;">${req.bloodGroup} needed</h4>
+                    <p style="margin:0; color:#475569;">Units: ${req.units} | Contact: ${req.contact}</p>
+                `;
+                requestsContainer.appendChild(card);
+            });
+        }
+    }
+}
+
+function showAddDoctorForm() {
+    const form = document.getElementById('add-doctor-form');
+    if (form) {
+        form.style.display = 'block';
+    }
+}
+
+function cancelAddDoctor() {
+    const form = document.getElementById('add-doctor-form');
+    const doctorForm = document.getElementById('doctor-form');
+    if (doctorForm) doctorForm.reset();
+    if (form) form.style.display = 'none';
 }
 
 // ============================================
@@ -469,76 +1160,17 @@ if (slotsInfo) {
     document.getElementById('appointment-modal').classList.add('active');
 }
 
-function loadAppointmentSlots(selectedDate) {
-    console.log('Loading slots for date:', selectedDate);
-    const slotSelect = document.getElementById('appointment-slot');
-    const slotsInfo = document.getElementById('slots-info');
-    
-    if (!slotSelect) {
-        console.error('Slot select not found!');
-        return;
-    }
-    
-    // Available time slots
-    const timeSlots = [
-        '09:00 AM - 09:30 AM',
-        '09:30 AM - 10:00 AM',
-        '10:00 AM - 10:30 AM',
-        '10:30 AM - 11:00 AM',
-        '11:00 AM - 11:30 AM',
-        '11:30 AM - 12:00 PM',
-        '02:00 PM - 02:30 PM',
-        '02:30 PM - 03:00 PM',
-        '03:00 PM - 03:30 PM',
-        '03:30 PM - 04:00 PM',
-        '04:00 PM - 04:30 PM',
-        '04:30 PM - 05:00 PM'
-    ];
-    
-    // Check existing bookings
-    const existingBookings = hospitalData.appointments.filter(apt => 
-        apt.doctorId === selectedDoctor.id && 
-        apt.date === selectedDate
-    );
-    
-    console.log('Existing bookings:', existingBookings.length);
-    
-    // Clear and populate slots
-    slotSelect.innerHTML = '<option value="">Select Time Slot</option>';
-    
-    let availableCount = 0;
-    timeSlots.forEach(slot => {
-        const bookingsInSlot = existingBookings.filter(apt => apt.slot === slot).length;
-        const available = MAX_APPOINTMENTS_PER_SLOT - bookingsInSlot;
-        
-        if (available > 0) {
-            const option = document.createElement('option');
-            option.value = slot;
-            option.textContent = `${slot} (${available} slots available)`;
-            slotSelect.appendChild(option);
-            availableCount++;
-        }
-    });
-    
-    if (availableCount > 0) {
-        slotsInfo.innerHTML = `✅ ${availableCount} time slots available`;
-        slotsInfo.style.background = '#d1fae5';
-        slotsInfo.style.color = '#065f46';
-        console.log('✅ Loaded', availableCount, 'slots');
-    } else {
-        slotsInfo.innerHTML = '❌ No slots available for this date';
-        slotsInfo.style.background = '#fee2e2';
-        slotsInfo.style.color = '#991b1b';
-        console.log('❌ No slots available');
-    }
-}
-
 function bookDiagnostic(type) {
     if (!currentUser) {
         showToast('Please login!');
         return;
     }
     selectedDiagnostic = type;
+    const info = document.getElementById('selected-diagnostic-info');
+    if (info) {
+        const price = diagnosticPrices[type] || 1000;
+        info.innerHTML = `<p class="muted">Selected: <strong>${type}</strong> • Estimated fee: ৳${price}</p>`;
+    }
     document.getElementById('diagnostic-modal').classList.add('active');
 }
 
@@ -548,11 +1180,52 @@ function requestAdmission(ward) {
         return;
     }
     selectedWard = ward;
+    const info = document.getElementById('selected-ward-info');
+    if (info) {
+        const price = wardPricing[ward] || 500;
+        info.innerHTML = `<p class="muted">Selected: <strong>${ward}</strong> • Rate: ৳${price} / day</p>`;
+    }
     document.getElementById('ward-modal').classList.add('active');
 }
 
 function closeModal(id) {
     document.getElementById(id).classList.remove('active');
+}
+
+function openPaymentFor(type, targetId, amount, description) {
+    paymentContext = { type, targetId, amount, description };
+
+    const info = document.getElementById('payment-info');
+    if (info) {
+        info.innerHTML = `
+            <h3 style="margin-bottom:8px;">${description}</h3>
+            <p style="margin:0; color:#475569;">Amount payable: <strong>৳${amount}</strong></p>
+        `;
+    }
+
+    const form = document.getElementById('payment-form');
+    if (form) {
+        form.reset();
+    }
+    updatePaymentFields();
+    document.getElementById('payment-modal').classList.add('active');
+}
+
+function updatePaymentFields() {
+    const method = document.getElementById('payment-method')?.value;
+    const mobile = document.getElementById('mobile-payment-fields');
+    const visa = document.getElementById('visa-fields');
+    const savings = document.getElementById('savings-fields');
+
+    [mobile, visa, savings].forEach(section => section && (section.style.display = 'none'));
+
+    if (method === 'bkash' || method === 'nagad') {
+        mobile.style.display = 'block';
+    } else if (method === 'visa') {
+        visa.style.display = 'block';
+    } else if (method === 'savings') {
+        savings.style.display = 'block';
+    }
 }
 
 // ============================================
@@ -562,6 +1235,15 @@ function closeModal(id) {
 function formatDateTime(iso) {
     if (!iso) return '-';
     return new Date(iso).toLocaleString('en-GB');
+}
+
+function latestDonationIndex(list) {
+    if (!list.length) return -1;
+    return list.reduce((bestIdx, item, idx) => {
+        const bestDate = new Date(list[bestIdx].date || 0);
+        const nextDate = new Date(item.date || 0);
+        return nextDate > bestDate ? idx : bestIdx;
+    }, 0);
 }
 
 function generateToken() {
@@ -607,8 +1289,13 @@ function setupEventListeners() {
                 console.log('Total patients:', userData.patients.length);
                 user = userData.patients.find(p => p.phone === username);
                 if (user) {
-                    authenticated = true;
-                    console.log('✅ Patient found:', user.name);
+                    const passwordOk = !user.password || user.password === password;
+                    authenticated = !!passwordOk;
+                    if (authenticated && password && !user.password) {
+                        user.password = password;
+                        saveUserData();
+                    }
+                    console.log(passwordOk ? '✅ Patient found:' : '❌ Wrong password', user.name);
                 } else {
                     console.log('❌ Patient not found');
                 }
@@ -617,8 +1304,13 @@ function setupEventListeners() {
                 console.log('Total donors:', userData.donors.length);
                 user = userData.donors.find(d => d.phone === username);
                 if (user) {
-                    authenticated = true;
-                    console.log('✅ Donor found:', user.name);
+                    const passwordOk = !user.password || user.password === password;
+                    authenticated = !!passwordOk;
+                    if (authenticated && password && !user.password) {
+                        user.password = password;
+                        saveUserData();
+                    }
+                    console.log(passwordOk ? '✅ Donor found:' : '❌ Wrong password', user.name);
                 } else {
                     console.log('❌ Donor not found');
                 }
@@ -683,17 +1375,17 @@ function setupEventListeners() {
             const newUser = {
                 id: selectedRoleForAuth.charAt(0).toUpperCase() + Date.now(),
                 name: document.getElementById('register-name').value,
+                photo: document.getElementById('register-photo').value,
                 phone: phone,
                 age: document.getElementById('register-age').value,
                 bloodGroup: document.getElementById('register-blood').value,
-                registrationDate: new Date().toISOString()
+                registrationDate: new Date().toISOString(),
+                medicalHistory: []
             };
-            
+
             console.log('New user data:', newUser);
-            
-            if (selectedRoleForAuth === 'employee') {
-                newUser.password = document.getElementById('register-password').value;
-            }
+
+            newUser.password = document.getElementById('register-password').value;
             
             if (selectedRoleForAuth === 'patient') {
                 userData.patients.push(newUser);
@@ -721,6 +1413,78 @@ function setupEventListeners() {
         console.warn('⚠️ Register form NOT found!');
     }
 
+    // Admin - Add doctor
+    const doctorForm = document.getElementById('doctor-form');
+    if (doctorForm) {
+        doctorForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('doctor-name').value.trim();
+            const specialization = document.getElementById('doctor-specialization').value.trim();
+            const phone = document.getElementById('doctor-phone').value.trim();
+            const photo = document.getElementById('doctor-photo').value.trim();
+            const fee = Number(document.getElementById('doctor-fee').value) || 0;
+
+            if (!name || !specialization || !phone) {
+                showToast('Please fill all required doctor fields.');
+                return;
+            }
+
+            const newDoctor = {
+                id: 'D' + String(hospitalData.doctors.length + 1).padStart(3, '0'),
+                name,
+                specialization,
+                phone,
+                photo,
+                fee
+            };
+
+            hospitalData.doctors.push(newDoctor);
+            saveData();
+            renderAdminDoctors();
+            loadPatientDoctors();
+            showToast('Doctor added to roster');
+            cancelAddDoctor();
+        });
+    }
+
+    // Admin - Post notice
+    const noticeForm = document.getElementById('notice-form');
+    if (noticeForm) {
+        noticeForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const title = document.getElementById('notice-title').value.trim();
+            const message = document.getElementById('notice-message').value.trim();
+            const type = document.getElementById('notice-type').value;
+            const highlight = document.getElementById('notice-highlight').value.trim() || '🌸';
+            const image = document.getElementById('notice-image').value.trim();
+
+            if (!title || !message) {
+                showToast('Please add a title and message for the notice.');
+                return;
+            }
+
+            const notice = {
+                id: 'AL' + Date.now(),
+                title,
+                message,
+                type,
+                highlight,
+                image,
+                time: new Date().toISOString()
+            };
+
+            hospitalData.alerts.push(notice);
+            saveData();
+            renderNoticeBoard();
+            renderAdminNotices();
+
+            showToast('Notice published to homepage!');
+            this.reset();
+        });
+    }
+
     // Profile edit
     const profileForm = document.getElementById('profile-edit-form');
     if (profileForm) {
@@ -728,17 +1492,111 @@ function setupEventListeners() {
             e.preventDefault();
             
             currentUser.name = document.getElementById('edit-name').value;
+            currentUser.photo = document.getElementById('edit-photo').value;
             currentUser.phone = document.getElementById('edit-phone').value;
             currentUser.age = document.getElementById('edit-age').value;
             currentUser.bloodGroup = document.getElementById('edit-blood').value;
-            
+
             saveUserData();
             saveData();
             saveSession();
-            
+            syncPatientRecord();
+
             showToast('Profile updated!');
             loadPatientProfile();
             cancelProfileEdit();
+        });
+    }
+
+    const historyForm = document.getElementById('patient-history-form');
+    if (historyForm) {
+        historyForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!currentUser) return;
+
+            const entry = {
+                condition: document.getElementById('history-condition').value,
+                date: document.getElementById('history-date').value,
+                notes: document.getElementById('history-notes').value,
+                loggedAt: new Date().toISOString()
+            };
+
+            if (!currentUser.medicalHistory) currentUser.medicalHistory = [];
+            currentUser.medicalHistory.push(entry);
+            saveUserData();
+            syncPatientRecord();
+            saveData();
+            renderPatientHistory();
+            showToast('History saved');
+            this.reset();
+        });
+    }
+
+    const passwordAccessForm = document.getElementById('password-access-form');
+    if (passwordAccessForm) {
+        passwordAccessForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!currentUser) return;
+
+            const entered = document.getElementById('password-access').value;
+
+            if (currentUser.password) {
+                if (!entered) {
+                    showToast('Enter your existing password to unlock.');
+                    return;
+                }
+                if (entered !== currentUser.password) {
+                    showToast('Existing password is incorrect.');
+                    return;
+                }
+            } else if (!entered) {
+                showToast('Set your first password after unlocking to secure the account.');
+            }
+
+            unlockPasswordSecurityUI();
+            showToast('Password settings unlocked securely.');
+        });
+    }
+
+    const relockButton = document.getElementById('relock-password-panel');
+    if (relockButton) {
+        relockButton.addEventListener('click', function() {
+            resetPasswordSecurityUI();
+            showToast('Password controls relocked.');
+        });
+    }
+
+    const passwordForm = document.getElementById('password-update-form');
+    if (passwordForm) {
+        passwordForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!currentUser) return;
+
+            if (!passwordAreaUnlocked) {
+                showToast('Unlock password settings first.');
+                return;
+            }
+
+            const next = document.getElementById('new-password').value;
+            const confirm = document.getElementById('confirm-password').value;
+
+            if (!next || next.length < 6) {
+                showToast('Choose a password with at least 6 characters.');
+                return;
+            }
+
+            if (!next || next !== confirm) {
+                showToast('New passwords do not match.');
+                return;
+            }
+
+            currentUser.password = next;
+            saveUserData();
+            syncPatientRecord();
+            saveData();
+            showToast('Password saved for your account');
+            this.reset();
+            resetPasswordSecurityUI();
         });
     }
     
@@ -749,15 +1607,27 @@ function setupEventListeners() {
         appointmentForm.addEventListener('submit', function(e) {
             e.preventDefault();
             console.log('📋 Booking appointment...');
-            
+
             const date = document.getElementById('appointment-date').value;
             const slot = document.getElementById('appointment-slot').value;
-            
+
             if (!date || !slot) {
                 showToast('Please select date and time slot!');
                 return;
             }
-            
+
+            const bookingsForSlot = hospitalData.appointments.filter(apt =>
+                apt.doctorId === selectedDoctor.id &&
+                apt.date === date &&
+                apt.slot === slot
+            ).length;
+
+            if (bookingsForSlot >= MAX_APPOINTMENTS_PER_SLOT) {
+                showToast('Selected slot is full. Please choose another time.');
+                loadAvailableTimeSlots();
+                return;
+            }
+
             const appointment = {
                 id: 'APT' + Date.now(),
                 patientId: currentUser.id,
@@ -768,6 +1638,7 @@ function setupEventListeners() {
                 date: date,
                 slot: slot,
                 fee: selectedDoctor.fee,
+                paymentStatus: 'unpaid',
                 status: 'scheduled',
                 bookingTime: new Date().toISOString(),
                 tokenNumber: generateToken()
@@ -775,13 +1646,16 @@ function setupEventListeners() {
             
             hospitalData.appointments.push(appointment);
             saveData();
-            
+
             console.log('✅ Appointment booked:', appointment.tokenNumber);
-            
+
             showToast(`Appointment booked! Token: ${appointment.tokenNumber}`);
+            loadAvailableTimeSlots();
             closeModal('appointment-modal');
             this.reset();
-            
+
+            openPaymentFor('appointment', appointment.id, appointment.fee, `Consultation with Dr. ${appointment.doctorName}`);
+
             // Reload appointments if on that tab
             if (document.getElementById('patient-appointments').classList.contains('active')) {
                 loadPatientAppointments();
@@ -789,6 +1663,236 @@ function setupEventListeners() {
         });
     } else {
         console.warn('⚠️ Appointment form NOT found');
+    }
+
+    const donationForm = document.getElementById('donation-form');
+    if (donationForm) {
+        donationForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            if (!currentUser || currentRole !== 'donor') {
+                showToast('Please login as a donor first.');
+                return;
+            }
+
+            const date = document.getElementById('donation-date').value;
+            const units = Number(document.getElementById('donation-units').value) || 1;
+            const location = document.getElementById('donation-location').value.trim();
+            const notes = document.getElementById('donation-notes').value.trim();
+
+            if (!date || units <= 0) {
+                showToast('Please pick a date and units.');
+                return;
+            }
+
+            const donation = {
+                id: 'DON' + Date.now(),
+                donorId: currentUser.id,
+                donorName: currentUser.name,
+                bloodGroup: currentUser.bloodGroup || 'N/A',
+                units,
+                date,
+                location: location || 'IbneSina Blood Center',
+                notes,
+                status: 'Scheduled',
+                createdAt: new Date().toISOString()
+            };
+
+            ensureDonorRecord();
+            currentUser.donations.push(donation);
+            const donorIdx = userData.donors.findIndex(d => d.id === currentUser.id);
+            if (donorIdx >= 0) {
+                userData.donors[donorIdx] = currentUser;
+            }
+
+            hospitalData.bloodBank.donations.push(donation);
+            if (!hospitalData.bloodBank.stock[donation.bloodGroup]) {
+                hospitalData.bloodBank.stock[donation.bloodGroup] = 0;
+            }
+            hospitalData.bloodBank.stock[donation.bloodGroup] += units;
+
+            saveUserData();
+            saveData();
+
+            showToast('Donation booked. Thank you!');
+            renderDonorHistory();
+            loadDonorProfile();
+            renderAdminBloodPanels();
+
+            donationForm.reset();
+            updateDonorEligibility();
+        });
+    }
+
+    const diagnosticForm = document.getElementById('diagnostic-form');
+    if (diagnosticForm) {
+        diagnosticForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            if (!currentUser) {
+                showToast('Please login first.');
+                return;
+            }
+
+            const date = document.getElementById('diagnostic-date').value;
+            const slot = document.getElementById('diagnostic-slot').value;
+            const price = diagnosticPrices[selectedDiagnostic] || 1000;
+
+            if (!selectedDiagnostic || !date || !slot) {
+                showToast('Select test, date, and slot.');
+                return;
+            }
+
+            const booking = {
+                id: 'DIAG' + Date.now(),
+                patientId: currentUser.id,
+                patientName: currentUser.name,
+                patientPhone: currentUser.phone,
+                type: selectedDiagnostic,
+                date,
+                slot,
+                price,
+                status: 'scheduled',
+                paymentStatus: 'unpaid'
+            };
+
+            hospitalData.diagnosticBookings.push(booking);
+            saveData();
+
+            showToast(`${booking.type} booked!`);
+            closeModal('diagnostic-modal');
+            diagnosticForm.reset();
+            renderDiagnosticQueues();
+            if (document.getElementById('patient-appointments').classList.contains('active')) {
+                loadPatientAppointments();
+            }
+        });
+    }
+
+    const wardForm = document.getElementById('ward-form');
+    if (wardForm) {
+        wardForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            if (!currentUser) {
+                showToast('Please login first.');
+                return;
+            }
+
+            const reason = document.getElementById('admission-reason').value.trim();
+            const emergency = document.getElementById('emergency-status').value;
+            const price = wardPricing[selectedWard] || 500;
+
+            if (!selectedWard || !reason) {
+                showToast('Please select ward and add a reason.');
+                return;
+            }
+
+            const request = {
+                id: 'WARD' + Date.now(),
+                patientId: currentUser.id,
+                patientName: currentUser.name,
+                ward: selectedWard,
+                reason,
+                emergency,
+                status: emergency === 'yes' ? 'priority' : 'pending',
+                paymentStatus: 'unpaid',
+                price
+            };
+
+            hospitalData.wardAdmissions.push(request);
+            saveData();
+
+            showToast(`${request.ward} admission requested`);
+            closeModal('ward-modal');
+            wardForm.reset();
+            renderWardRequests();
+            if (document.getElementById('patient-appointments').classList.contains('active')) {
+                loadPatientAppointments();
+            }
+        });
+    }
+
+    const paymentForm = document.getElementById('payment-form');
+    if (paymentForm) {
+        paymentForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            if (!paymentContext) {
+                showToast('No payment selected.');
+                return;
+            }
+
+            const method = document.getElementById('payment-method').value;
+            if (!method) {
+                showToast('Select a payment method.');
+                return;
+            }
+
+            let reference = '';
+            if (method === 'bkash' || method === 'nagad') {
+                const mobile = document.getElementById('mobile-number').value.trim();
+                const trx = document.getElementById('transaction-id').value.trim();
+                if (!mobile || !trx) {
+                    showToast('Enter mobile number and transaction ID.');
+                    return;
+                }
+                reference = `${method.toUpperCase()} ${mobile} / ${trx}`;
+            } else if (method === 'visa') {
+                const card = document.getElementById('card-number').value.trim();
+                const expiry = document.getElementById('card-expiry').value.trim();
+                const cvv = document.getElementById('card-cvv').value.trim();
+                const name = document.getElementById('card-name').value.trim();
+                if (!card || !expiry || !cvv || !name) {
+                    showToast('Fill all card details.');
+                    return;
+                }
+                reference = `VISA ****${card.slice(-4)} exp ${expiry}`;
+            } else if (method === 'savings') {
+                const acc = document.getElementById('account-number').value.trim();
+                const holder = document.getElementById('account-holder').value.trim();
+                const bank = document.getElementById('bank-name').value;
+                if (!acc || !holder || !bank) {
+                    showToast('Complete bank details.');
+                    return;
+                }
+                reference = `${bank} • ${holder} • ${acc}`;
+            } else if (method === 'cash') {
+                reference = 'Cash payment at hospital';
+            }
+
+            const payment = {
+                id: 'PAY' + Date.now(),
+                ...paymentContext,
+                method,
+                reference,
+                userId: currentUser?.id || 'guest',
+                role: currentRole || 'guest',
+                time: new Date().toISOString()
+            };
+
+            hospitalData.payments.push(payment);
+
+            if (paymentContext.type === 'appointment') {
+                const target = hospitalData.appointments.find(a => a.id === paymentContext.targetId);
+                if (target) target.paymentStatus = 'paid';
+            } else if (paymentContext.type === 'diagnostic') {
+                const target = hospitalData.diagnosticBookings.find(b => b.id === paymentContext.targetId);
+                if (target) target.paymentStatus = 'paid';
+            } else if (paymentContext.type === 'ward') {
+                const target = hospitalData.wardAdmissions.find(w => w.id === paymentContext.targetId);
+                if (target) target.paymentStatus = 'paid';
+            }
+
+            saveData();
+            loadPatientAppointments();
+            renderDiagnosticQueues();
+            renderWardRequests();
+
+            showToast('Payment recorded. Thank you!');
+            closeModal('payment-modal');
+            paymentContext = null;
+        });
     }
 }
 
@@ -823,6 +1927,7 @@ window.addEventListener('DOMContentLoaded', () => {
     try {
         loadData();
         console.log('✅ Step 1 complete - Data loaded');
+        renderNoticeBoard();
     } catch (e) {
         console.error('❌ Step 1 failed:', e);
     }
@@ -837,10 +1942,11 @@ window.addEventListener('DOMContentLoaded', () => {
         console.error('❌ Step 2 failed:', e);
     }
     
-    console.log('Step 3: Showing home section...');
+    console.log('Step 3: Showing start section...');
     try {
-        showSection('home');
-        console.log('✅ Step 3 complete - Home section shown');
+        const startSection = currentRole ? getDashboardForRole(currentRole) : 'home';
+        showSection(startSection);
+        console.log('✅ Step 3 complete - Section shown:', startSection);
     } catch (e) {
         console.error('❌ Step 3 failed:', e);
     }
@@ -865,64 +1971,60 @@ window.addEventListener('click', (e) => {
 });
 
 console.log('✅ Script loaded!');
-// clean code er practice er jonno in future 864 line theke delete kore dibo
-function loadAvailableTimeSlots() {
-    const date = document.getElementById('appointmentDate').value;
-    const slotSelect = document.getElementById('timeSlot');
-
-    console.log('📅 Selected date:', date);
-
-    slotSelect.innerHTML = '<option value="">Select Time Slot</option>';
-
-    if (!date) return;
-
-    // Dummy slots (later doctor wise banানো যাবে)
-    const slots = [
-        '09:00 AM - 09:30 AM',
-        '09:30 AM - 10:00 AM',
-        '10:00 AM - 10:30 AM',
-        '11:00 AM - 11:30 AM',
-        '03:00 PM - 03:30 PM'
-    ];
-
-    slots.forEach(slot => {
-        const option = document.createElement('option');
-        option.value = slot;
-        option.textContent = slot;
-        slotSelect.appendChild(option);
-    });
-}
-// ei porjonto delete korbo 
-
-// newly called 
 function loadAvailableTimeSlots() {
     const date = document.getElementById('appointment-date').value;
     const slotSelect = document.getElementById('appointment-slot');
     const info = document.getElementById('slots-info');
 
-    console.log('📅 Selected date:', date);
-
     slotSelect.innerHTML = '<option value="">Select Time Slot</option>';
 
-    if (!date) {
+    if (!date || !selectedDoctor) {
         info.textContent = 'Select a date to see available slots';
+        info.style.background = '#f0f9ff';
+        info.style.color = '#0c4a6e';
         return;
     }
 
-    const slots = [
+    const timeSlots = [
         '09:00 AM - 09:30 AM',
         '09:30 AM - 10:00 AM',
         '10:00 AM - 10:30 AM',
+        '10:30 AM - 11:00 AM',
         '11:00 AM - 11:30 AM',
-        '03:00 PM - 03:30 PM'
+        '11:30 AM - 12:00 PM',
+        '02:00 PM - 02:30 PM',
+        '02:30 PM - 03:00 PM',
+        '03:00 PM - 03:30 PM',
+        '03:30 PM - 04:00 PM',
+        '04:00 PM - 04:30 PM',
+        '04:30 PM - 05:00 PM'
     ];
 
-    slots.forEach(slot => {
-        const opt = document.createElement('option');
-        opt.value = slot;
-        opt.textContent = slot;
-        slotSelect.appendChild(opt);
+    const existingBookings = hospitalData.appointments.filter(apt =>
+        apt.doctorId === selectedDoctor.id && apt.date === date
+    );
+
+    let availableCount = 0;
+    timeSlots.forEach(slot => {
+        const bookingsInSlot = existingBookings.filter(apt => apt.slot === slot).length;
+        const available = MAX_APPOINTMENTS_PER_SLOT - bookingsInSlot;
+
+        if (available > 0) {
+            const option = document.createElement('option');
+            option.value = slot;
+            option.textContent = `${slot} (${available} slots available)`;
+            slotSelect.appendChild(option);
+            availableCount++;
+        }
     });
 
-    info.textContent = `Available slots for ${date}`;
+    if (availableCount > 0) {
+        info.textContent = `✅ ${availableCount} time slots available for ${date}`;
+        info.style.background = '#d1fae5';
+        info.style.color = '#065f46';
+    } else {
+        info.textContent = '❌ No slots available for this date';
+        info.style.background = '#fee2e2';
+        info.style.color = '#991b1b';
+    }
 }

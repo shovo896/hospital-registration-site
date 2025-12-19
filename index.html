@@ -16,7 +16,7 @@
                 <button onclick="checkAuthAndShow('patient-dashboard')" class="nav-btn" id="patient-nav" style="display: none;">Patient</button>
                 <button onclick="checkAuthAndShow('donor-dashboard')" class="nav-btn" id="donor-nav" style="display: none;">Donor</button>
                 <button onclick="checkAuthAndShow('employee-dashboard')" class="nav-btn" id="employee-nav" style="display: none;">Employee</button>
-                <button onclick="checkAuthAndShow('admin-dashboard')" class="nav-btn" id="admin-nav" style="display: none;">Admin</button>
+                <button onclick="checkAuthAndShow('admin')" class="nav-btn" id="admin-nav" style="display: none;">Admin</button>
                 <button onclick="showSection('login')" class="nav-btn" id="login-btn">Login</button>
                 <button onclick="logout()" class="nav-btn" id="logout-btn" style="display: none; background: #ef4444; color: white;">Logout</button>
             </div>
@@ -28,12 +28,26 @@
         <div class="container">
             <div class="hero">
                 <h1>Welcome to IbneSina Hospital</h1>
-                <p>Quality Healthcare Services at Your Fingertips</p>
+                <p id="hero-subtitle">Quality Healthcare Services at Your Fingertips</p>
                 <div class="quick-actions">
-                    <button onclick="showSection('login')" class="btn btn-primary">Login / Register</button>
-                    
+                    <button id="home-auth-cta" onclick="showSection('login')" class="btn btn-primary">Login / Register</button>
+                </div>
             </div>
-            
+
+            </div>
+
+            <div class="notice-board-wrapper">
+                <div class="notice-board-header">
+                    <div>
+                        <p class="eyebrow">Bloom & Care</p>
+                        <h2>🌹 Hospital Notice Board</h2>
+                        <p class="muted">Latest updates, offers, and care reminders inspired by rose & sunflower warmth.</p>
+                    </div>
+                    <div class="notice-flowers">🌻 🌹 🌻</div>
+                </div>
+                <div id="notice-board" class="notice-grid"></div>
+            </div>
+
             <div class="services-grid">
                 <div class="service-card">
                     <div class="service-icon">🏥</div>
@@ -147,6 +161,10 @@
                             <input type="text" id="register-name" required>
                         </div>
                         <div class="form-group">
+                            <label for="register-photo">Profile Photo (URL)</label>
+                            <input type="url" id="register-photo" placeholder="https://example.com/me.jpg">
+                        </div>
+                        <div class="form-group">
                             <label for="register-phone">Phone Number *</label>
                             <input type="tel" id="register-phone" required>
                         </div>
@@ -183,9 +201,9 @@
                                 <option value="accounts">Accounts</option>
                             </select>
                         </div>
-                        <div class="form-group" id="password-register-field" style="display: none;">
+                        <div class="form-group" id="password-register-field">
                             <label for="register-password">Create Password *</label>
-                            <input type="password" id="register-password">
+                            <input type="password" id="register-password" placeholder="Choose a login password">
                         </div>
                         <button type="submit" class="btn btn-primary" style="width: 100%;">Register</button>
                     </form>
@@ -213,9 +231,9 @@
             <!-- Patient Profile Tab -->
             <div id="patient-profile" class="dashboard-tab active">
                 <div class="profile-card">
-                    <div class="profile-header">
-                        <div class="profile-avatar">
-                            <span id="patient-avatar">P</span>
+                        <div class="profile-header">
+                        <div class="profile-avatar" id="patient-avatar">
+                            <span id="patient-avatar-fallback">P</span>
                         </div>
                         <div class="profile-info">
                             <h3 id="patient-name-display">Patient Name</h3>
@@ -252,6 +270,10 @@
                             <input type="text" id="edit-name" required>
                             </div>
                             <div class="form-group">
+                                <label for="edit-photo">Profile Photo (URL)</label>
+                            <input type="url" id="edit-photo" placeholder="https://example.com/me.jpg">
+                            </div>
+                            <div class="form-group">
                                 <label for="edit-phone">Phone Number *</label>
                             <input type="tel" id="edit-phone" required>
                             </div>
@@ -279,6 +301,79 @@
                             </div>
                         </form>
                     </div>
+                </div>
+
+                <div class="profile-card secondary-card">
+                    <div class="profile-header" style="align-items: flex-start;">
+                        <div>
+                            <h3>🩺 Medical History</h3>
+                            <p class="muted">Track diagnoses and notes for future visits.</p>
+                        </div>
+                    </div>
+                    <form id="patient-history-form" class="stacked-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="history-condition">Condition / Diagnosis *</label>
+                                <input type="text" id="history-condition" required placeholder="e.g., Hypertension">
+                            </div>
+                            <div class="form-group">
+                                <label for="history-date">Recorded On</label>
+                                <input type="date" id="history-date">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="history-notes">Notes</label>
+                            <textarea id="history-notes" rows="2" placeholder="Medicines, triggers, doctor advice"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Save History</button>
+                    </form>
+                    <div id="patient-history-list" class="profile-list" style="margin-top: 16px;"></div>
+                </div>
+
+                <div class="profile-card secondary-card password-card">
+                    <div class="profile-header" style="align-items: flex-start;">
+                        <div>
+                            <h3>🔐 Password & Security</h3>
+                            <p class="muted">Password options stay hidden until you unlock with your existing password.</p>
+                        </div>
+                        <span id="password-lock-status" class="lock-pill locked">Locked</span>
+                    </div>
+
+                    <div class="security-visual">
+                        <img src="https://images.unsplash.com/photo-1519121785383-3229633bb4e1?auto=format&fit=crop&w=900&q=80" alt="Secure access illustration" loading="lazy">
+                        <div class="security-quote">
+                            Keep your credentials safe with a protected, one-at-a-time unlock.
+                        </div>
+                    </div>
+
+                    <div id="password-gate" class="security-gate">
+                        <p class="muted" id="password-gate-hint">Enter your existing password to view password controls.</p>
+                        <form id="password-access-form" class="stacked-form">
+                            <div class="form-group">
+                                <label for="password-access">Existing Password</label>
+                                <input type="password" id="password-access" placeholder="Required to unlock settings" required>
+                            </div>
+                            <button type="submit" class="btn btn-secondary" style="width: 100%;">Unlock Password Settings</button>
+                        </form>
+                    </div>
+
+                    <form id="password-update-form" class="stacked-form locked-panel" aria-hidden="true">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="new-password">New Password *</label>
+                                <input type="password" id="new-password" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="confirm-password">Confirm New Password *</label>
+                                <input type="password" id="confirm-password" required>
+                            </div>
+                        </div>
+                        <p class="muted" id="password-unlock-msg">Unlocked just for this session. Save to update, or relock anytime.</p>
+                        <div class="button-row">
+                            <button type="button" class="btn btn-secondary ghost" id="relock-password-panel">Relock</button>
+                            <button type="submit" class="btn btn-primary" style="width: 50%;">Save Password</button>
+                        </div>
+                    </form>
                 </div>
             </div>
 
@@ -384,6 +479,102 @@
                     <div id="patient-admissions-list" class="profile-list">
                         <!-- Admissions -->
                     </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Donor Dashboard Section -->
+    <section id="donor-dashboard" class="section">
+        <div class="container">
+            <h2>🩸 Donor Dashboard</h2>
+
+            <div class="sub-nav">
+                <button onclick="showDonorTab('donor-profile')" class="sub-nav-btn active">Profile</button>
+                <button onclick="showDonorTab('donor-donate')" class="sub-nav-btn">Donate</button>
+                <button onclick="showDonorTab('donor-requests')" class="sub-nav-btn">Requests</button>
+                <button onclick="showDonorTab('donor-history')" class="sub-nav-btn">History</button>
+            </div>
+
+            <!-- Donor Profile Tab -->
+            <div id="donor-profile" class="dashboard-tab active">
+                <div class="profile-card donor-card">
+                    <div class="profile-header">
+                        <div class="profile-avatar profile-avatar-gradient">
+                            <span id="donor-avatar">D</span>
+                        </div>
+                        <div class="profile-info">
+                            <h3 id="donor-name-display">Donor Name</h3>
+                            <p id="donor-id-display">ID: D000000</p>
+                            <div class="donor-tag" id="donor-blood-tag">Blood Group: -</div>
+                        </div>
+                        <div class="donor-highlight" id="donor-last-donation">Last donation: N/A</div>
+                    </div>
+
+                    <div class="donor-stats-grid">
+                        <div class="donor-stat">
+                            <p class="stat-label">Total Donations</p>
+                            <p class="stat-value" id="donor-total-donations">0</p>
+                        </div>
+                        <div class="donor-stat">
+                            <p class="stat-label">Units Donated</p>
+                            <p class="stat-value" id="donor-total-units">0</p>
+                        </div>
+                        <div class="donor-stat">
+                            <p class="stat-label">Next Booking</p>
+                            <p class="stat-value" id="donor-next-booking">None</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Donate Tab -->
+            <div id="donor-donate" class="dashboard-tab">
+                <div class="donation-card">
+                    <div class="donation-header">
+                        <div>
+                            <h3>Schedule a Donation</h3>
+                            <p>Choose a date and units to confirm your next visit.</p>
+                        </div>
+                        <div class="donor-pill" id="donor-next-eligible">Next eligible: -</div>
+                    </div>
+                    <form id="donation-form" class="donation-form">
+                        <div class="form-group">
+                            <label for="donation-date">Donation Date *</label>
+                            <input type="date" id="donation-date" required>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="donation-units">Units (bags) *</label>
+                                <input type="number" id="donation-units" min="1" max="3" value="1" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="donation-location">Preferred Center</label>
+                                <input type="text" id="donation-location" placeholder="e.g., Main Blood Bank">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="donation-notes">Health Notes</label>
+                            <textarea id="donation-notes" rows="3" placeholder="Recent medicine, travel, or health updates"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Confirm Donation</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Requests Tab -->
+            <div id="donor-requests" class="dashboard-tab">
+                <div class="profile-section">
+                    <h4>🚨 Emergency Requests Near You</h4>
+                    <div id="donor-requests-list" class="profile-list"></div>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div id="donor-history" class="dashboard-tab">
+                <div class="profile-section">
+                    <h4>📜 Donation History</h4>
+                    <div id="donor-donations-list" class="profile-list"></div>
                 </div>
             </div>
         </div>
@@ -659,12 +850,13 @@
             
             <!-- Admin Tabs -->
             <div class="admin-tabs">
-                <button class="tab-btn active" onclick="showAdminTab('doctors-mgmt')">Doctors</button>
-                <button class="tab-btn" onclick="showAdminTab('diagnostics-mgmt')">Diagnostics</button>
-                <button class="tab-btn" onclick="showAdminTab('blood-mgmt')">Blood Bank</button>
-                <button class="tab-btn" onclick="showAdminTab('wards-mgmt')">Wards</button>
-                <button class="tab-btn" onclick="showAdminTab('queues')">Live Queues</button>
-                <button class="tab-btn" onclick="showAdminTab('analytics')">Analytics</button>
+                <button class="tab-btn active" data-tab="doctors-mgmt" onclick="showAdminTab('doctors-mgmt')">Doctors</button>
+                <button class="tab-btn" data-tab="diagnostics-mgmt" onclick="showAdminTab('diagnostics-mgmt')">Diagnostics</button>
+                <button class="tab-btn" data-tab="blood-mgmt" onclick="showAdminTab('blood-mgmt')">Blood Bank</button>
+                <button class="tab-btn" data-tab="wards-mgmt" onclick="showAdminTab('wards-mgmt')">Wards</button>
+                <button class="tab-btn" data-tab="queues" onclick="showAdminTab('queues')">Live Queues</button>
+                <button class="tab-btn" data-tab="notice-mgmt" onclick="showAdminTab('notice-mgmt')">Notices</button>
+                <button class="tab-btn" data-tab="analytics" onclick="showAdminTab('analytics')">Analytics</button>
             </div>
 
             <!-- Doctors Management Tab -->
@@ -769,6 +961,54 @@
                 </div>
             </div>
 
+            <!-- Notice Board Tab -->
+            <div id="notice-mgmt" class="admin-tab">
+                <div class="admin-section">
+                    <div class="notice-admin-header">
+                        <div>
+                            <p class="eyebrow">Floral Dispatch</p>
+                            <h3>Notice Board Controls</h3>
+                            <p class="muted">Share updates that bloom across the home page.</p>
+                        </div>
+                        <div class="notice-flowers">🌻🌹🌻</div>
+                    </div>
+
+                    <form id="notice-form" class="notice-form">
+                        <div class="form-group">
+                            <label for="notice-title">Notice Title *</label>
+                            <input type="text" id="notice-title" required placeholder="e.g., Rose Week Discount Clinics">
+                        </div>
+                        <div class="form-group">
+                            <label for="notice-message">Message *</label>
+                            <textarea id="notice-message" rows="3" required placeholder="Share the details patients should know"></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="notice-type">Tone</label>
+                                <select id="notice-type">
+                                    <option value="info">Info</option>
+                                    <option value="success">Positive</option>
+                                    <option value="warning">Heads-up</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="notice-image">Photo (optional)</label>
+                                <input type="url" id="notice-image" placeholder="https://image.example.com/poster.jpg">
+                            </div>
+                            <div class="form-group">
+                                <label for="notice-highlight">Emoji Accent</label>
+                                <input type="text" id="notice-highlight" placeholder="🌸 or 🌻" maxlength="2">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Post to Notice Board</button>
+                    </form>
+
+                    <div class="notice-admin-list" id="notice-list-admin">
+                        <!-- Admin notices render here -->
+                    </div>
+                </div>
+            </div>
+
             <!-- Analytics Tab -->
             <div id="analytics" class="admin-tab">
                 <div class="admin-section">
@@ -824,6 +1064,7 @@
                         <option value="bkash">bKash</option>
                         <option value="nagad">Nagad</option>
                         <option value="visa">Visa Card</option>
+                        <option value="cash">Cash (at hospital)</option>
                         <option value="savings">Savings Account</option>
                     </select>
                 </div>

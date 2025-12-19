@@ -30,7 +30,7 @@
                 <h1>Welcome to IbneSina Hospital</h1>
                 <p id="hero-subtitle">Quality Healthcare Services at Your Fingertips</p>
                 <div class="quick-actions">
-                    <button id="home-auth-cta" onclick="showSection('login')" class="btn btn-primary">Login / Register</button>
+                    <button onclick="showSection('login')" class="btn btn-primary">Login / Register</button>
                 </div>
             </div>
 
@@ -330,34 +330,18 @@
                     <div id="patient-history-list" class="profile-list" style="margin-top: 16px;"></div>
                 </div>
 
-                <div class="profile-card secondary-card password-card">
+                <div class="profile-card secondary-card">
                     <div class="profile-header" style="align-items: flex-start;">
                         <div>
                             <h3>🔐 Password & Security</h3>
-                            <p class="muted">Password options stay hidden until you unlock with your existing password.</p>
-                        </div>
-                        <span id="password-lock-status" class="lock-pill locked">Locked</span>
-                    </div>
-
-                    <div class="security-visual">
-                        <img src="https://images.unsplash.com/photo-1519121785383-3229633bb4e1?auto=format&fit=crop&w=900&q=80" alt="Secure access illustration" loading="lazy">
-                        <div class="security-quote">
-                            Keep your credentials safe with a protected, one-at-a-time unlock.
+                            <p class="muted">Save or change your login password for safer access.</p>
                         </div>
                     </div>
-
-                    <div id="password-gate" class="security-gate">
-                        <p class="muted" id="password-gate-hint">Enter your existing password to view password controls.</p>
-                        <form id="password-access-form" class="stacked-form">
-                            <div class="form-group">
-                                <label for="password-access">Existing Password</label>
-                                <input type="password" id="password-access" placeholder="Required to unlock settings" required>
-                            </div>
-                            <button type="submit" class="btn btn-secondary" style="width: 100%;">Unlock Password Settings</button>
-                        </form>
-                    </div>
-
-                    <form id="password-update-form" class="stacked-form locked-panel" aria-hidden="true">
+                    <form id="password-update-form" class="stacked-form">
+                        <div class="form-group">
+                            <label for="current-password">Current Password</label>
+                            <input type="password" id="current-password" placeholder="Leave blank if you never set one">
+                        </div>
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="new-password">New Password *</label>
@@ -368,11 +352,7 @@
                                 <input type="password" id="confirm-password" required>
                             </div>
                         </div>
-                        <p class="muted" id="password-unlock-msg">Unlocked just for this session. Save to update, or relock anytime.</p>
-                        <div class="button-row">
-                            <button type="button" class="btn btn-secondary ghost" id="relock-password-panel">Relock</button>
-                            <button type="submit" class="btn btn-primary" style="width: 50%;">Save Password</button>
-                        </div>
+                        <button type="submit" class="btn btn-secondary" style="width: 100%;">Save Password</button>
                     </form>
                 </div>
             </div>
@@ -855,7 +835,6 @@
                 <button class="tab-btn" data-tab="blood-mgmt" onclick="showAdminTab('blood-mgmt')">Blood Bank</button>
                 <button class="tab-btn" data-tab="wards-mgmt" onclick="showAdminTab('wards-mgmt')">Wards</button>
                 <button class="tab-btn" data-tab="queues" onclick="showAdminTab('queues')">Live Queues</button>
-                <button class="tab-btn" data-tab="notice-mgmt" onclick="showAdminTab('notice-mgmt')">Notices</button>
                 <button class="tab-btn" data-tab="analytics" onclick="showAdminTab('analytics')">Analytics</button>
             </div>
 

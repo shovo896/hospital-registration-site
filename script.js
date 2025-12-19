@@ -1547,6 +1547,18 @@ window.backToLogin = backToLogin;
 window.checkAuthAndShow = checkAuthAndShow;
 window.logout = logout;
 window.logoutAdmin = logoutAdmin;
+window.showPatientTab = showPatientTab;
+window.toggleProfileEdit = toggleProfileEdit;
+window.cancelProfileEdit = cancelProfileEdit;
+window.bookDiagnostic = bookDiagnostic;
+window.requestAdmission = requestAdmission;
+window.showDonorTab = showDonorTab;
+window.closeModal = closeModal;
+window.showAdminTab = showAdminTab;
+window.showAddDoctorForm = showAddDoctorForm;
+window.cancelAddDoctor = cancelAddDoctor;
+window.resetDailyData = resetDailyData;
+window.exportData = exportData;
 console.log('✅ Script loaded!');
 
 function loadAvailableTimeSlots() {

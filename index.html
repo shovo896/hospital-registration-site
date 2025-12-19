@@ -161,10 +161,6 @@
                             <input type="text" id="register-name" required>
                         </div>
                         <div class="form-group">
-                            <label for="register-photo">Profile Photo (URL)</label>
-                            <input type="url" id="register-photo" placeholder="https://example.com/me.jpg">
-                        </div>
-                        <div class="form-group">
                             <label for="register-phone">Phone Number *</label>
                             <input type="tel" id="register-phone" required>
                         </div>
@@ -197,10 +193,18 @@
                                 <option value="">Select Department</option>
                                 <option value="reception">Reception</option>
                                 <option value="nursing">Nursing</option>
-                                <option value="laboratory">Laboratory</option>
-                                <option value="pharmacy">Pharmacy</option>
-                                <option value="accounts">Accounts</option>
-                            </select>
+                            <option value="laboratory">Laboratory</option>
+                            <option value="pharmacy">Pharmacy</option>
+                            <option value="accounts">Accounts</option>
+                        </select>
+                    </div>
+                        <div class="form-group">
+                            <label for="register-password">Password *</label>
+                            <input type="password" id="register-password" placeholder="Enter password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="register-password-confirm">Confirm Password *</label>
+                            <input type="password" id="register-password-confirm" placeholder="Re-enter password" required>
                         </div>
                         <button type="submit" class="btn btn-primary" style="width: 100%;">Register</button>
                     </form>

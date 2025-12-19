@@ -81,6 +81,7 @@ function saveSession() {
             role: currentRole
         }));
     }
+}
 
 function hydrateSessionFromStorage() {
     const savedSession = localStorage.getItem('currentSession');

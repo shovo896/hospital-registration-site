@@ -39,6 +39,19 @@ let hospitalData = {
 };
 // Maximum appointments allowed per time slot
 const MAX_APPOINTMENTS_PER_SLOT = 3;
+const diagnosticPrices = {
+    'Blood Test': 800,
+    'X-Ray': 600,
+    'ECG': 700,
+    'MRI': 3000,
+    'Ultrasound': 1200,
+    'CT Scan': 2500
+};
+const wardPricing = {
+    'General': 500,
+    'Cabin': 1500,
+    'ICU': 4000
+};
 // ============================================
 // DATA MANAGEMENT
 // ============================================

@@ -1637,5 +1637,18 @@ function openAppointmentModal(doctor) {
     }
     const title = document.getElementById('appointment-doctor-name');
     if (title) title.textContent = doctor?.name || 'Selected Doctor';
+    const info = document.getElementById('selected-doctor-info');
+    if (info) {
+        info.innerHTML = `
+            <p style="margin:0;font-weight:600;">${doctor?.name || 'Doctor'}</p>
+            <p style="margin:0;color:#475569;">${doctor?.specialization || ''}</p>
+            <p style="margin:0;color:#0f172a;">Fee: ৳${doctor?.fee || '-'}</p>
+        `;
+    }
+    const dateInput = document.getElementById('appointment-date');
+    if (dateInput && !dateInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+    }
     loadAvailableTimeSlots();
 }
